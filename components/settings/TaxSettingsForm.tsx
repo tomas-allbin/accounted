@@ -2,7 +2,8 @@
 
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { byEntityType, isEntityType } from '@/lib/company/entity-type'
+import { byEntityType, fiscalYearLockedToCalendar, isEntityType } from '@/lib/company/entity-type'
+import { annualVatFilingMethodMatters } from '@/lib/tax/deadline-config'
 import { Switch } from '@/components/ui/switch'
 import { HelpPopover } from '@/components/ui/help-popover'
 import {
@@ -70,7 +71,13 @@ export function TaxSettingsForm({
     settings.fyllnadsinbetalning_enabled ?? false,
   )
 
-  const isEnskildFirma = settings.entity_type === 'enskild_firma'
+  // Capabilities, not the form: the fiscal year is locked for an enskild
+  // firma and a handelsbolag (BFL 3 kap. 1 §), and the helårsmoms filing
+  // method only moves the date for a juridisk person on the räkenskapsår
+  // table (SFL 26 kap. 33 b §).
+  const form = isEntityType(settings.entity_type) ? settings.entity_type : null
+  const calendarYearLocked = form !== null && fiscalYearLockedToCalendar(form)
+  const filingMethodMatters = form !== null && annualVatFilingMethodMatters(form, hasEuTrade)
 
   const months = [
     t('month_jan'), t('month_feb'), t('month_mar'), t('month_apr'),
@@ -89,6 +96,7 @@ export function TaxSettingsForm({
                   aktiebolag: t('entity_aktiebolag'),
                   enskild_firma: t('entity_enskild_firma'),
                   ideell_forening: t('entity_ideell_forening'),
+                  handelsbolag: t('entity_handelsbolag'),
                 })
               : ''}
           </span>
@@ -212,7 +220,7 @@ export function TaxSettingsForm({
             <input type="hidden" name="vat_has_eu_trade" value={hasEuTrade ? 'true' : 'false'} />
           </SettingsRow>
 
-          {momsPeriod === 'yearly' && !hasEuTrade && !isEnskildFirma && (
+          {momsPeriod === 'yearly' && filingMethodMatters && (
             <SettingsRow
               label={t('vat_filing_method_label')}
               htmlFor="vat_filing_method"
@@ -319,9 +327,9 @@ export function TaxSettingsForm({
         <SettingsRow
           label={t('fiscal_year_start_label')}
           htmlFor="fiscal_year_start_month"
-          help={isEnskildFirma ? t('fiscal_year_ef_help') : t('fiscal_year_change_help')}
+          help={calendarYearLocked ? t('fiscal_year_ef_help') : t('fiscal_year_change_help')}
         >
-          {isEnskildFirma ? (
+          {calendarYearLocked ? (
             <>
               <SettingsInput
                 id="fiscal_year_start_month"

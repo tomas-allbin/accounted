@@ -84,6 +84,27 @@ describe('VAT filing deadlines', () => {
     }))[0]).toMatchObject({ day: 12, month: 6, year: 2027, period: '2026' })
   })
 
+  it('gives a handelsbolag the 26th of the second month regardless of EU trade (SFL 26 kap. 33 §)', () => {
+    const config = getConfig('moms_yearly')
+    // Calendar year 2026, no EU trade, no filing method: still 26 February 2027.
+    expect(config.generateDates(2027, makeSettings({
+      entity_type: 'handelsbolag',
+      moms_period: 'yearly',
+      vat_filing_method: null as never,
+    }))[0]).toMatchObject({ day: 26, month: 1, year: 2027, period: '2026' })
+    expect(config.generateDates(2027, makeSettings({
+      entity_type: 'handelsbolag',
+      moms_period: 'yearly',
+      vat_has_eu_trade: true,
+    }))[0]).toMatchObject({ day: 26, month: 1, year: 2027, period: '2026' })
+    // A handelsbolag is calendar-locked: a configured broken year is ignored.
+    expect(config.generateDates(2027, makeSettings({
+      entity_type: 'handelsbolag',
+      moms_period: 'yearly',
+      fiscal_year_start_month: 7,
+    }))[0]).toMatchObject({ day: 26, month: 1, year: 2027, period: '2026' })
+  })
+
   it('gives an ideell förening the juridisk person helårsmoms schedule, same as an AB', () => {
     const config = getConfig('moms_yearly')
     const ab = config.generateDates(2027, makeSettings({
@@ -398,6 +419,30 @@ describe('long-tail opt-in deadlines', () => {
       { day: 12, month: 7, year: 2030 },
       { day: 3, month: 10, year: 2030 },
     ])
+  })
+})
+
+describe('inkomstdeklaration_hb: INK4 on the juridisk person table', () => {
+  const config = getConfig('inkomstdeklaration_hb')
+
+  it('applies to a handelsbolag and to no other form', () => {
+    expect(config.condition(makeSettings({ entity_type: 'handelsbolag' }))).toBe(true)
+    expect(config.condition(makeSettings({ entity_type: 'aktiebolag' }))).toBe(false)
+    expect(config.condition(makeSettings({ entity_type: 'enskild_firma' }))).toBe(false)
+    expect(config.condition(makeSettings({ entity_type: 'ideell_forening' }))).toBe(false)
+    expect(getConfig('inkomstdeklaration_ab').condition(makeSettings({ entity_type: 'handelsbolag' }))).toBe(false)
+    expect(getConfig('inkomstdeklaration_ef').condition(makeSettings({ entity_type: 'handelsbolag' }))).toBe(false)
+  })
+
+  it('FY 2026 (calendar year) → raw 1 August 2027; the generator moves it to Monday 2 August', () => {
+    const dates = config.generateDates(2027, makeSettings({ entity_type: 'handelsbolag' }))
+    expect(dates).toHaveLength(1)
+    expect(dates[0]).toMatchObject({ day: 1, month: 7, year: 2027, period: '2026', periodLabel: '2026' })
+  })
+
+  it('gives a handelsbolag no årsredovisning or årsstämma deadline', () => {
+    expect(getConfig('arsredovisning').condition(makeSettings({ entity_type: 'handelsbolag' }))).toBe(false)
+    expect(getConfig('arsstamma').condition(makeSettings({ entity_type: 'handelsbolag' }))).toBe(false)
   })
 })
 

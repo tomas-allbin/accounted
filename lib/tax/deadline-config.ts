@@ -4,7 +4,12 @@
  */
 
 import type { TaxDeadlineType, EntityType, MomsPeriod, TaxFilingMethod } from '@/types'
-import { fiscalYearLockedToCalendar, isEntityType } from '@/lib/company/entity-type'
+import {
+  annualVatSchedule,
+  filesIncomeReturn,
+  fiscalYearLockedToCalendar,
+  isEntityType,
+} from '@/lib/company/entity-type'
 import { isBankingDay } from './swedish-holidays'
 
 // Condition function type for determining if a deadline applies
@@ -129,18 +134,20 @@ function getAnnualVatDeadline(
   fiscalYearEndYear: number,
   settings: AnnualVatDeadlineSettings,
 ): { day: number; month: number; year: number } {
-  // Enskild firma (calendar year only, BFL 3 kap.): without EU trade the
-  // annual momsdeklaration follows the income tax return (12 May); with EU
-  // trade it is due 26 February (26 kap. 33-33a §§ SFL, Skatteverket's
-  // published helårsmoms schedule). Every juridisk person (AB, ideell
-  // förening) follows the räkenskapsår schedule below.
-  if (fiscalYearLockedToCalendar(settings.entity_type)) {
-    return settings.vat_has_eu_trade
-      ? { day: 26, month: 1, year: fiscalYearEndYear + 1 }
-      : { day: 12, month: 4, year: fiscalYearEndYear + 1 }
+  // SFL 26 kap. 33-33 b §§ (Skatteverket's published helårsmoms schedule):
+  // - 33 §: the 26th of the second month after the beskattningsår. The
+  //   default, and the rule for every form with EU trade (33 a-b §§ second
+  //   paragraphs) and for a handelsbolag regardless (33 b § excepts it).
+  // - 33 a §: a fysisk person (enskild firma) without EU trade files with
+  //   the income tax return, 12 May.
+  // - 33 b §: a juridisk person without EU trade follows the räkenskapsår
+  //   table below.
+  const schedule = annualVatSchedule(settings.entity_type)
+  if (schedule === 'income_return' && !settings.vat_has_eu_trade) {
+    return { day: 12, month: 4, year: fiscalYearEndYear + 1 }
   }
 
-  if (settings.vat_has_eu_trade) {
+  if (schedule === 'second_month' || settings.vat_has_eu_trade) {
     const month = (fiscalYearEndMonth + 1) % 12
     const year = fiscalYearEndYear + (fiscalYearEndMonth >= 11 ? 1 : 0)
     // A 26 December due date lands on annandag jul; the banking-day
@@ -161,6 +168,16 @@ function getAnnualVatDeadline(
     return { day: 12, month: paper ? 2 : 3, year: fiscalYearEndYear + 1 }
   }
   return { day: paper ? 12 : 17, month: paper ? 6 : 7, year: fiscalYearEndYear + 1 }
+}
+
+/**
+ * Whether the helårsmoms date depends on paper vs electronic filing: only
+ * the räkenskapsår table of SFL 26 kap. 33 b § does, and only without EU
+ * trade. Shared with the settings UI and the MCP VAT tools so they ask for
+ * the filing method exactly when the date needs it.
+ */
+export function annualVatFilingMethodMatters(entityType: EntityType, hasEuTrade: boolean): boolean {
+  return annualVatSchedule(entityType) === 'fiscal_year_schedule' && !hasEuTrade
 }
 
 /**
@@ -211,9 +228,9 @@ export function getVatDeadlineForPeriod(
   }
   const calendarYearOnly = fiscalYearLockedToCalendar(settings.entity_type)
   if (typeof settings.vat_has_eu_trade !== 'boolean') return null
+  // Only the räkenskapsår table (33 b §) differs by filing method.
   if (
-    !calendarYearOnly
-    && settings.vat_has_eu_trade === false
+    annualVatFilingMethodMatters(settings.entity_type, settings.vat_has_eu_trade)
     && settings.vat_filing_method !== 'electronic'
     && settings.vat_filing_method !== 'paper'
   ) {
@@ -258,6 +275,51 @@ function generateAnnualVatDates(
     if (instance?.year === deadlineYear) results.push(instance)
   }
 
+  return results
+}
+
+/**
+ * Income return dates for a juridisk person (INK2, INK4): Skatteverket's
+ * lookup table by fiscal-year end month, the same for every such form.
+ *   FY end Jan-Apr  → Dec 1 same year as FY end
+ *   FY end May-Jun  → Jan 15 year after FY end
+ *   FY end Jul-Aug  → Apr 1 year after FY end
+ *   FY end Sep-Dec  → Aug 1 year after FY end
+ * Raw statutory dates; the generator moves them to the next banking day.
+ */
+function juridiskPersonIncomeReturnDates(
+  year: number,
+  settings: CompanySettingsForDeadlines,
+): DeadlineInstance[] {
+  // FY end month (1-indexed): e.g. start=1 → end=12, start=5 → end=4. A
+  // calendar-locked form (a handelsbolag with fysiska delägare) ends in
+  // December whatever the setting says.
+  const fyEndMonth = fiscalYearLockedToCalendar(settings.entity_type)
+    ? 12
+    : (settings.fiscal_year_start_month === 1 ? 12 : settings.fiscal_year_start_month - 1)
+
+  const getDeadline = (fyEndYear: number) => {
+    if (fyEndMonth >= 1 && fyEndMonth <= 4) {
+      return { day: 1, month: 11, year: fyEndYear } // Dec 1
+    } else if (fyEndMonth >= 5 && fyEndMonth <= 6) {
+      return { day: 15, month: 0, year: fyEndYear + 1 } // Jan 15
+    } else if (fyEndMonth >= 7 && fyEndMonth <= 8) {
+      return { day: 1, month: 3, year: fyEndYear + 1 } // Apr 1
+    } else {
+      return { day: 1, month: 7, year: fyEndYear + 1 } // Aug 1
+    }
+  }
+
+  // Find which FY ending produces a deadline in `year`: FY endings in
+  // year-1 and year can both do so.
+  const results: DeadlineInstance[] = []
+  for (const fyEndYear of [year - 1, year]) {
+    const dl = getDeadline(fyEndYear)
+    if (dl.year === year) {
+      const label = getFiscalYearLabel(fyEndMonth, fyEndYear)
+      results.push({ day: dl.day, month: dl.month, year: dl.year, period: label, periodLabel: label })
+    }
+  }
   return results
 }
 
@@ -679,7 +741,7 @@ export const TAX_DEADLINE_CONFIGS: TaxDeadlineConfig[] = [
     type: 'inkomstdeklaration_ef',
     titleTemplate: 'Inkomstdeklaration + NE-bilaga {periodLabel}',
     description: 'Inkomstdeklaration för enskild firma',
-    condition: (s) => s.entity_type === 'enskild_firma',
+    condition: (s) => filesIncomeReturn(s.entity_type) === 'NE',
     priority: 'critical',
     linkedReportType: 'ne-declaration',
     generateDates: (year) => {
@@ -695,55 +757,25 @@ export const TAX_DEADLINE_CONFIGS: TaxDeadlineConfig[] = [
     type: 'inkomstdeklaration_ab',
     titleTemplate: 'Inkomstdeklaration AB {periodLabel}',
     description: 'Inkomstdeklaration för aktiebolag',
-    condition: (s) => s.entity_type === 'aktiebolag',
+    condition: (s) => filesIncomeReturn(s.entity_type) === 'INK2',
     priority: 'critical',
     linkedReportType: null,
-    generateDates: (year, settings) => {
-      // FY end month (1-indexed): e.g. start=1 → end=12, start=5 → end=4
-      const fyEndMonth = settings.fiscal_year_start_month === 1 ? 12 : settings.fiscal_year_start_month - 1
+    generateDates: (year, settings) => juridiskPersonIncomeReturnDates(year, settings),
+  },
 
-      // Skatteverket digital filing deadline lookup:
-      // FY end Jan-Apr  → Dec 1 same year as FY end
-      // FY end May-Jun  → Jan 15 year after FY end
-      // FY end Jul-Aug  → Apr 1 year after FY end
-      // FY end Sep-Dec  → Aug 1 year after FY end
-      const getDeadline = (fyEndYear: number) => {
-        if (fyEndMonth >= 1 && fyEndMonth <= 4) {
-          return { day: 1, month: 11, year: fyEndYear } // Dec 1
-        } else if (fyEndMonth >= 5 && fyEndMonth <= 6) {
-          return { day: 15, month: 0, year: fyEndYear + 1 } // Jan 15
-        } else if (fyEndMonth >= 7 && fyEndMonth <= 8) {
-          return { day: 1, month: 3, year: fyEndYear + 1 } // Apr 1
-        } else {
-          return { day: 1, month: 7, year: fyEndYear + 1 } // Aug 1
-        }
-      }
-
-      // We need to find which FY ending produces a deadline in `year`.
-      // Try FY endings in year-1 and year (both could produce deadlines in `year`).
-      const results: DeadlineInstance[] = []
-      for (const fyEndYear of [year - 1, year]) {
-        const dl = getDeadline(fyEndYear)
-        if (dl.year === year) {
-          // Compute the FY start year
-          const fyStart = fyEndMonth === 12 ? fyEndYear : fyEndYear
-          const periodLabel = fyEndMonth === 12
-            ? `${fyEndYear}`
-            : `${fyStart - 1}/${fyStart}`
-          const period = fyEndMonth === 12
-            ? `${fyEndYear}`
-            : `${fyStart - 1}/${fyStart}`
-          results.push({
-            day: dl.day,
-            month: dl.month,
-            year: dl.year,
-            period,
-            periodLabel,
-          })
-        }
-      }
-      return results
-    },
+  // Inkomstdeklaration 4 (handelsbolag): the same räkenskapsår table as an
+  // AB (Skatteverket, "Deklarera åt ett handelsbolag"; 1 August for a
+  // calendar year, moved to the next banking day by the generator, so
+  // 2 August 2027 for 2026). The delägare's N3A rides with their own
+  // INK1 in early May and is not a deadline of the bolag.
+  {
+    type: 'inkomstdeklaration_hb',
+    titleTemplate: 'Inkomstdeklaration 4 {periodLabel}',
+    description: 'Inkomstdeklaration för handelsbolag (INK4 med INK4R, INK4S och INK4DU)',
+    condition: (s) => filesIncomeReturn(s.entity_type) === 'INK4',
+    priority: 'critical',
+    linkedReportType: null,
+    generateDates: (year, settings) => juridiskPersonIncomeReturnDates(year, settings),
   },
 
   // Årsredovisning (AB): 7 months after fiscal year end per ÅRL 8:3

@@ -80,6 +80,7 @@ import {
 } from '@/lib/salary/deviation-period'
 import type { DayValueEmployee } from '@/lib/salary/semesterberedning'
 import {
+  annualVatFilingMethodMatters,
   getVatDeadlineForPeriod,
   type VatDeadlineCalculationSettings,
 } from '@/lib/tax/deadline-config'
@@ -2940,7 +2941,8 @@ export async function computeVatCloseCheck(
     const fiscalYearMatches = calendarYearOnly
       ? reportEndMonth === 12
       : configuredStartMonth === reportStartMonth
-    const filingMethodRequired = !calendarYearOnly && settings.vat_has_eu_trade === false
+    const filingMethodRequired = settings.vat_has_eu_trade === false
+      && annualVatFilingMethodMatters(entityType, false)
     const filingProfileComplete = typeof settings.vat_has_eu_trade === 'boolean'
       && (!filingMethodRequired
         || settings.vat_filing_method === 'electronic'
@@ -3950,7 +3952,7 @@ export const tools: McpTool[] = [
 
       const askEverything = [
         'name',
-        'entity_type (enskild_firma, aktiebolag or ideell_forening)',
+        `entity_type (${creatableEntityTypes().join(', ')})`,
         'f_skatt',
         'vat_registered (and moms_period if yes)',
         'accounting_method (accrual or cash)',
@@ -4009,7 +4011,7 @@ export const tools: McpTool[] = [
       // accounting method are ALWAYS the user's answer.
       const vatIsFact = lookup.registration.vat === true
       const stillToAsk: string[] = []
-      if (!entityType) stillToAsk.push('entity_type (enskild_firma, aktiebolag or ideell_forening)')
+      if (!entityType) stillToAsk.push(`entity_type (${creatableEntityTypes().join(', ')})`)
       if (entityType === 'enskild_firma') {
         stillToAsk.push(
           'name: for enskild firma the verksamhetsnamn is freely choosable; suggest the registered name but let the user pick'
@@ -4106,7 +4108,7 @@ export const tools: McpTool[] = [
         org_number: { type: 'string', description: '10 digits; required when VAT-registered' },
         vat_registered: { type: 'boolean' },
         moms_period: { type: 'string', enum: ['monthly', 'quarterly', 'yearly'], description: 'Required when vat_registered' },
-        accounting_method: { type: 'string', enum: ['accrual', 'cash'], description: 'Omit to default by form: aktiebolag accrual, enskild firma cash; the preview flags the default' },
+        accounting_method: { type: 'string', enum: ['accrual', 'cash'], description: 'Omit to default by form: aktiebolag accrual, enskild firma and handelsbolag cash; the preview flags the default' },
         f_skatt: { type: 'boolean' },
         fiscal_year_start_month: { type: 'integer', minimum: 1, maximum: 12 },
         first_fiscal_year: {

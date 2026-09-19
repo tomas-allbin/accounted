@@ -186,6 +186,7 @@ function getSwedishTaxTypeLabel(type: string): string {
     skatteinbetalning: 'Skatteinbetalning (storföretag)',
     inkomstdeklaration_ef: 'Inkomstdeklaration EF',
     inkomstdeklaration_ab: 'Inkomstdeklaration AB',
+    inkomstdeklaration_hb: 'Inkomstdeklaration 4 (HB)',
     arsredovisning: 'Årsredovisning',
     arsstamma: 'Årsstämma',
     periodisk_sammanstallning: 'Periodisk sammanställning',

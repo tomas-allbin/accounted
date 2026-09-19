@@ -419,6 +419,7 @@ export const TaxDeadlineTypeSchema = z.enum([
   'skatteinbetalning',
   'inkomstdeklaration_ef',
   'inkomstdeklaration_ab',
+  'inkomstdeklaration_hb',
   'arsredovisning',
   'arsstamma',
   'periodisk_sammanstallning',

@@ -253,7 +253,7 @@ describe('Enum schemas', () => {
     const types = [
       'moms_monthly', 'moms_quarterly', 'moms_yearly', 'f_skatt',
       'arbetsgivardeklaration', 'inkomstdeklaration_ef', 'inkomstdeklaration_ab',
-      'arsredovisning', 'arsstamma', 'periodisk_sammanstallning',
+      'inkomstdeklaration_hb', 'arsredovisning', 'arsstamma', 'periodisk_sammanstallning',
     ]
     for (const t of types) {
       expect(TaxDeadlineTypeSchema.safeParse(t).success).toBe(true)
