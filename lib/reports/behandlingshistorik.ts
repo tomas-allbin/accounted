@@ -374,7 +374,12 @@ const SETTINGS_VALUE_LABELS: Record<string, Record<string, string>> = {
   // company_settings CHECK allows 'accrual' | 'cash'; 'invoice' is the legacy spelling.
   accounting_method: { accrual: 'Faktureringsmetoden', invoice: 'Faktureringsmetoden', cash: 'Kontantmetoden' },
   moms_period: { monthly: 'Månad', quarterly: 'Kvartal', yearly: 'Helår', none: 'Ingen' },
-  entity_type: { aktiebolag: 'Aktiebolag', enskild_firma: 'Enskild firma', ideell_forening: 'Ideell förening' },
+  entity_type: {
+    aktiebolag: 'Aktiebolag',
+    enskild_firma: 'Enskild firma',
+    ideell_forening: 'Ideell förening',
+    handelsbolag: 'Handelsbolag',
+  },
 }
 
 const PERIOD_FIELDS: Record<string, string> = {

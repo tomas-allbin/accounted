@@ -73,20 +73,25 @@ function pickerForms(orgNumber: string | null | undefined): { chips: EntityType[
 }
 
 /** i18n key per legal form for the picker chips and the summary card. */
-const FORM_LABEL_KEY: Record<EntityType, 'journey_form_ab' | 'journey_form_ef' | 'journey_form_forening'> = {
+const FORM_LABEL_KEY: Record<
+  EntityType,
+  'journey_form_ab' | 'journey_form_ef' | 'journey_form_forening' | 'journey_form_hb'
+> = {
   aktiebolag: 'journey_form_ab',
   enskild_firma: 'journey_form_ef',
   ideell_forening: 'journey_form_forening',
+  handelsbolag: 'journey_form_hb',
 }
 
 /**
  * Per-form sentence for the picker's info text, shown only while the form is
  * creatable; null when the base text already covers the form.
  */
-const FORM_INFO_KEY: Record<EntityType, 'journey_form_info_forening' | null> = {
+const FORM_INFO_KEY: Record<EntityType, 'journey_form_info_forening' | 'journey_form_info_hb' | null> = {
   aktiebolag: null,
   enskild_firma: null,
   ideell_forening: 'journey_form_info_forening',
+  handelsbolag: 'journey_form_info_hb',
 }
 
 /** Statutory label for a planned-form code the reducer stored, or null. */

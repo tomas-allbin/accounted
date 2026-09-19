@@ -237,3 +237,60 @@ describe('CompanySetupSchema: ideell_forening', () => {
     expect(plan.input.entityType).toBe('ideell_forening')
   })
 })
+
+describe('CompanySetupSchema: handelsbolag', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('is refused while the creation flag is off', () => {
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', '')
+    const result = CompanySetupSchema.safeParse({
+      name: 'Testbyrån HB',
+      entity_type: 'handelsbolag',
+      org_number: '9696632737',
+      vat_registered: true,
+      moms_period: 'yearly',
+      f_skatt: true,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('entity_type')
+    }
+  })
+
+  it('defaults to kontantmetoden and forces the calendar year once enabled', () => {
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', 'true')
+    const setup = CompanySetupSchema.parse({
+      name: 'Testbyrån HB',
+      entity_type: 'handelsbolag',
+      org_number: '9696632737',
+      vat_registered: true,
+      moms_period: 'yearly',
+      f_skatt: true,
+      fiscal_year_start_month: 7,
+    })
+    const plan = planCompanySetup(setup)
+    expect(plan.ok).toBe(true)
+    if (!plan.ok) return
+    expect(plan.resolved).toEqual({ accountingMethod: 'cash', accountingMethodDefaulted: true })
+    expect(plan.input.settings.fiscal_year_start_month).toBe(1)
+    expect(plan.input.entityType).toBe('handelsbolag')
+  })
+
+  it('refuses a first fiscal year that does not end on 31 December (BFL 3 kap. 1 §)', () => {
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', 'true')
+    const result = CompanySetupSchema.safeParse({
+      name: 'Testbyrån HB',
+      entity_type: 'handelsbolag',
+      org_number: '9696632737',
+      vat_registered: false,
+      f_skatt: true,
+      first_fiscal_year: { start: '2026-03-01', end: '2027-02-28' },
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('first_fiscal_year.end')
+    }
+  })
+})

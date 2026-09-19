@@ -6,6 +6,7 @@ import {
   ENTITY_TYPES,
   ENTITY_TYPE_LABELS_SV,
   UnknownEntityTypeError,
+  annualVatSchedule,
   booksCurrentTax,
   creationFlagReader,
   filesIncomeReturn,
@@ -39,6 +40,7 @@ function leaves(profile: LegalFormProfile): Record<string, unknown> {
     'filings.corporateTaxDispositions': profile.filings.corporateTaxDispositions,
     'filings.arsredovisning': profile.filings.arsredovisning,
     'filings.frameworks': JSON.stringify(profile.filings.frameworks),
+    'filings.annualVatSchedule': profile.filings.annualVatSchedule,
   }
 }
 
@@ -53,11 +55,12 @@ describe('legal forms: the registry', () => {
       enskild_firma: 'Enskild firma',
       aktiebolag: 'Aktiebolag',
       ideell_forening: 'Ideell förening',
+      handelsbolag: 'Handelsbolag',
     })
   })
 
   it('refuses a corrupt form at runtime', () => {
-    expect(() => legalFormProfile('handelsbolag' as never)).toThrow(UnknownEntityTypeError)
+    expect(() => legalFormProfile('kommanditbolag' as never)).toThrow(UnknownEntityTypeError)
   })
 
   it('names only accounts that exist in the BAS reference', () => {
@@ -103,8 +106,17 @@ describe('legal forms: capability readers', () => {
     expect(filesIncomeReturn('aktiebolag')).toBe('INK2')
     expect(filesIncomeReturn('enskild_firma')).toBe('NE')
     expect(filesIncomeReturn('ideell_forening')).toBeNull()
+    expect(filesIncomeReturn('handelsbolag')).toBe('INK4')
     expect(booksCurrentTax('aktiebolag')).toBe(true)
     expect(booksCurrentTax('ideell_forening')).toBe(false)
+    expect(booksCurrentTax('handelsbolag')).toBe(false)
+    expect(supportsCorporateTaxDispositions('handelsbolag')).toBe(false)
+    expect(supportsAccountingFramework('handelsbolag', 'K2')).toBe(true)
+    expect(supportsAccountingFramework('handelsbolag', 'K3')).toBe(false)
+    expect(annualVatSchedule('enskild_firma')).toBe('income_return')
+    expect(annualVatSchedule('aktiebolag')).toBe('fiscal_year_schedule')
+    expect(annualVatSchedule('ideell_forening')).toBe('fiscal_year_schedule')
+    expect(annualVatSchedule('handelsbolag')).toBe('second_month')
     expect(supportsCorporateTaxDispositions('aktiebolag')).toBe(true)
     expect(supportsCorporateTaxDispositions('enskild_firma')).toBe(false)
     expect(supportsCorporateTaxDispositions('ideell_forening')).toBe(false)
@@ -117,7 +129,9 @@ describe('legal forms: capability readers', () => {
     expect(hasOwners('enskild_firma')).toBe(true)
     expect(hasOwners('aktiebolag')).toBe(true)
     expect(hasOwners('ideell_forening')).toBe(false)
+    expect(hasOwners('handelsbolag')).toBe(true)
     expect(legalFormGlossary('ideell_forening')).toEqual({ entity: 'föreningen', owner: 'Medlem', meeting: 'årsmöte' })
+    expect(legalFormGlossary('handelsbolag')).toEqual({ entity: 'bolaget', owner: 'Delägare', meeting: null })
     expect(legalFormGlossary('enskild_firma').meeting).toBeNull()
   })
 
@@ -131,6 +145,9 @@ describe('legal forms: capability readers', () => {
     expect(templateAccountForForm('ideell_forening', '2018', undefined)).toBe('2890')
     expect(templateAccountForForm('ideell_forening', '6991', '6991')).toBe('6991')
     expect(templateAccountForForm('ideell_forening', undefined, undefined)).toBeUndefined()
+    // A handelsbolag reads the base column and keeps the owner accounts.
+    expect(templateAccountForForm('handelsbolag', '2013', '2893')).toBe('2013')
+    expect(templateAccountForForm('handelsbolag', '2018', undefined)).toBe('2018')
   })
 })
 

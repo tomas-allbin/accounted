@@ -87,7 +87,7 @@ describe('fallbackNarrative voice branching', () => {
   it('falls back gracefully when entityType is unknown', () => {
     const text = fallbackNarrative(
       makeInputs({
-        entityType: 'handelsbolag',
+        entityType: 'kommanditbolag',
         userIsConfirmedDirector: false,
       }),
     )
@@ -156,7 +156,7 @@ describe('fallbackAtomSelection by capability', () => {
   })
 
   it('gives an unknown form the universal set only', () => {
-    const sel = fallbackAtomSelection(makeInputs({ entityType: 'handelsbolag', atomIndex: ATOM_INDEX }))
+    const sel = fallbackAtomSelection(makeInputs({ entityType: 'kommanditbolag', atomIndex: ATOM_INDEX }))
     expect(sel.horizontal_atoms).toHaveLength(6)
     expect(sel.modifier_atoms).toEqual([])
   })

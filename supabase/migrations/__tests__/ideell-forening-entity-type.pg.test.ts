@@ -43,7 +43,7 @@ describe('ideell_forening: CHECK constraints', () => {
     const userId = await insertAuthUser()
     await expect(
       getPool().query(
-        `INSERT INTO public.companies (id, name, entity_type, created_by) VALUES ($1, 'HB', 'handelsbolag', $2)`,
+        `INSERT INTO public.companies (id, name, entity_type, created_by) VALUES ($1, 'KB', 'kommanditbolag', $2)`,
         [randomUUID(), userId],
       ),
     ).rejects.toMatchObject({ code: '23514' })
@@ -81,9 +81,9 @@ describe('ideell_forening: create_company_for_user', () => {
       getPool().query(`SELECT public.create_company_for_user($1::uuid, $2::text, $3::text, NULL::uuid)`, [
         userId,
         'HB',
-        'handelsbolag',
+        'kommanditbolag',
       ]),
-    ).rejects.toThrow(/Invalid entity_type: handelsbolag/)
+    ).rejects.toThrow(/Invalid entity_type: kommanditbolag/)
   })
 })
 

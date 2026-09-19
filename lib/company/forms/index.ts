@@ -3,6 +3,7 @@ import type { LegalFormProfile, PlannedLegalForm } from './types'
 import { SE_ENSKILD_FIRMA } from './se-enskild-firma'
 import { SE_AKTIEBOLAG } from './se-aktiebolag'
 import { SE_IDEELL_FORENING } from './se-ideell-forening'
+import { SE_HANDELSBOLAG } from './se-handelsbolag'
 
 export type { LegalFormProfile, PlannedLegalForm } from './types'
 
@@ -16,6 +17,7 @@ export const LEGAL_FORMS: Readonly<Record<EntityType, LegalFormProfile>> = {
   enskild_firma: SE_ENSKILD_FIRMA,
   aktiebolag: SE_AKTIEBOLAG,
   ideell_forening: SE_IDEELL_FORENING,
+  handelsbolag: SE_HANDELSBOLAG,
 }
 
 /**

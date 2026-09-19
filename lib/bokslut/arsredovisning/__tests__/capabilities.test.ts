@@ -51,7 +51,7 @@ describe('getAnnualReportCapabilities', () => {
   )
 
   it('treats an unknown form as not prepared, never as an aktiebolag', () => {
-    const result = getAnnualReportCapabilities('handelsbolag', 'k2', eligible)
+    const result = getAnnualReportCapabilities('kommanditbolag', 'k2', eligible)
     expect(result.paper.enabled).toBe(false)
     expect(result.ixbrl_preview.enabled).toBe(false)
   })

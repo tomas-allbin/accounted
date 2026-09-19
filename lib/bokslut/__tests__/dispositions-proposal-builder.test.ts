@@ -207,7 +207,7 @@ describe('buildDispositionsProposal: forms without corporate tax dispositions', 
   )
 
   it('refuses a form the registry does not know instead of defaulting it', async () => {
-    const supabase = supabaseFor({ period_start: '2025-01-01', period_end: '2025-12-31' }, 'handelsbolag')
+    const supabase = supabaseFor({ period_start: '2025-01-01', period_end: '2025-12-31' }, 'kommanditbolag')
 
     await expect(buildDispositionsProposal(supabase, 'company-1', 'period-1')).rejects.toThrow(
       /Unknown company entity_type/,

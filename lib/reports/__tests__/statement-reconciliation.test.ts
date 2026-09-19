@@ -161,8 +161,8 @@ describe('reconcileStatements: a failing generator must not read as reconciled',
           c.range = async () => result
           return c
         }
-        if (table === 'company_settings') return chain({ data: { entity_type: 'handelsbolag' }, error: null })
-        if (table === 'companies') return chain({ data: { entity_type: 'handelsbolag' }, error: null })
+        if (table === 'company_settings') return chain({ data: { entity_type: 'kommanditbolag' }, error: null })
+        if (table === 'companies') return chain({ data: { entity_type: 'kommanditbolag' }, error: null })
         return makeSupabase().from(table)
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

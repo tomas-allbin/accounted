@@ -26,6 +26,7 @@ export const ENTITY_TYPES = [
   'enskild_firma',
   'aktiebolag',
   'ideell_forening',
+  'handelsbolag',
 ] as const satisfies readonly EntityType[]
 
 // Compile-time proof that ENTITY_TYPES lists every member of the union.
@@ -107,6 +108,7 @@ export async function resolveCompanyEntityType(
 // ── Creation gate ────────────────────────────────────────────────────
 
 export const IDEELL_FORENING_FLAG = 'NEXT_PUBLIC_IDEELL_FORENING_ENABLED'
+export const HANDELSBOLAG_FLAG = 'NEXT_PUBLIC_HANDELSBOLAG_ENABLED'
 
 /**
  * One reader per `creationFlag` a profile declares. The literal
@@ -117,6 +119,7 @@ export const IDEELL_FORENING_FLAG = 'NEXT_PUBLIC_IDEELL_FORENING_ENABLED'
  */
 const CREATION_FLAG_READERS: Readonly<Record<string, () => string | undefined>> = {
   [IDEELL_FORENING_FLAG]: () => process.env.NEXT_PUBLIC_IDEELL_FORENING_ENABLED,
+  [HANDELSBOLAG_FLAG]: () => process.env.NEXT_PUBLIC_HANDELSBOLAG_ENABLED,
 }
 
 export function creationFlagReader(flag: string): (() => string | undefined) | undefined {
@@ -237,6 +240,11 @@ export function supportsAccountingFramework(
   framework: LegalFormProfile['filings']['frameworks'][number],
 ): boolean {
   return legalFormProfile(entityType).filings.frameworks.includes(framework)
+}
+
+/** When the form's helårsmoms declaration is due without EU trade (SFL 26 kap 33-33 b §§). */
+export function annualVatSchedule(entityType: EntityType): LegalFormProfile['filings']['annualVatSchedule'] {
+  return legalFormProfile(entityType).filings.annualVatSchedule
 }
 
 /** BFL 3 kap 1 §: a fysisk person (enskild firma) is bound to the calendar year. */

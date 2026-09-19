@@ -27,25 +27,25 @@ function stubSupabase(companyRow: { entity_type: string } | null, error: { messa
 }
 
 describe('entity-type: parsing', () => {
-  it('lists the three supported forms', () => {
-    expect([...ENTITY_TYPES]).toEqual(['enskild_firma', 'aktiebolag', 'ideell_forening'])
+  it('lists the four supported forms', () => {
+    expect([...ENTITY_TYPES]).toEqual(['enskild_firma', 'aktiebolag', 'ideell_forening', 'handelsbolag'])
   })
 
   it('narrows known values and rejects everything else', () => {
     expect(isEntityType('ideell_forening')).toBe(true)
-    expect(isEntityType('handelsbolag')).toBe(false)
+    expect(isEntityType('kommanditbolag')).toBe(false)
     expect(isEntityType(null)).toBe(false)
     expect(isEntityType(1930)).toBe(false)
     expect(parseEntityType('aktiebolag')).toBe('aktiebolag')
-    expect(() => parseEntityType('handelsbolag')).toThrow(UnknownEntityTypeError)
+    expect(() => parseEntityType('kommanditbolag')).toThrow(UnknownEntityTypeError)
     expect(() => parseEntityType(undefined)).toThrow(/expected one of/)
   })
 
   it('byEntityType refuses a corrupt value at runtime', () => {
-    expect(byEntityType('ideell_forening', { enskild_firma: 1, aktiebolag: 2, ideell_forening: 3 })).toBe(3)
-    expect(() =>
-      byEntityType('stiftelse' as never, { enskild_firma: 1, aktiebolag: 2, ideell_forening: 3 }),
-    ).toThrow(UnknownEntityTypeError)
+    const arms = { enskild_firma: 1, aktiebolag: 2, ideell_forening: 3, handelsbolag: 4 }
+    expect(byEntityType('ideell_forening', arms)).toBe(3)
+    expect(byEntityType('handelsbolag', arms)).toBe(4)
+    expect(() => byEntityType('stiftelse' as never, arms)).toThrow(UnknownEntityTypeError)
   })
 })
 
@@ -90,6 +90,13 @@ describe('entity-type: domain facts', () => {
       closingName: 'Årets resultat',
       priorYearCarry: '2068',
     })
+    // A handelsbolag closes to 2099 like an AB but has no carry account: the
+    // resultatfördelning to the delägare's kapitalkonton is a manual verifikat.
+    expect(resultClosingAccounts('handelsbolag')).toEqual({
+      closing: '2099',
+      closingName: 'Årets resultat',
+      priorYearCarry: null,
+    })
   })
 
   it('settles owner money on the form-specific account, 2890 for a förening', () => {
@@ -99,6 +106,8 @@ describe('entity-type: domain facts', () => {
     expect(ownerSettlementAccount('aktiebolag', 'contribution')).toBe('2893')
     expect(ownerSettlementAccount('ideell_forening', 'withdrawal')).toBe('2890')
     expect(ownerSettlementAccount('ideell_forening', 'contribution')).toBe('2890')
+    expect(ownerSettlementAccount('handelsbolag', 'withdrawal')).toBe('2013')
+    expect(ownerSettlementAccount('handelsbolag', 'contribution')).toBe('2018')
   })
 
   it('keeps the form-specific defaults', () => {
@@ -112,6 +121,13 @@ describe('entity-type: domain facts', () => {
     expect(defaultAccountingMethod('ideell_forening')).toBe('accrual')
     expect(simplifiedYearEndRegelverk('ideell_forening')).toBe('K1')
     expect(simplifiedYearEndRegelverk('aktiebolag')).toBe('K2')
+    // Handelsbolag: juridisk person with an organisationsnummer, but bound to
+    // the calendar year (BFL 3 kap. 1 § 2 st) and on BFNAR 2017:3, not K1.
+    expect(preparesArsredovisning('handelsbolag')).toBe(false)
+    expect(fiscalYearLockedToCalendar('handelsbolag')).toBe(true)
+    expect(usesPersonnummerAsOrgNumber('handelsbolag')).toBe(false)
+    expect(defaultAccountingMethod('handelsbolag')).toBe('cash')
+    expect(simplifiedYearEndRegelverk('handelsbolag')).toBe('K2')
   })
 })
 
@@ -120,16 +136,26 @@ describe('entity-type: creation flag', () => {
     vi.unstubAllEnvs()
   })
 
-  it('hides ideell_forening until the flag is on', () => {
+  it('hides ideell_forening and handelsbolag until their flags are on', () => {
     vi.stubEnv('NEXT_PUBLIC_IDEELL_FORENING_ENABLED', '')
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', '')
     expect(isEntityTypeCreatable('ideell_forening')).toBe(false)
+    expect(isEntityTypeCreatable('handelsbolag')).toBe(false)
     expect(isEntityTypeCreatable('aktiebolag')).toBe(true)
     expect(creatableEntityTypes()).toEqual(['enskild_firma', 'aktiebolag'])
   })
 
-  it('offers ideell_forening when the flag is on', () => {
+  it('offers ideell_forening when its flag is on', () => {
     vi.stubEnv('NEXT_PUBLIC_IDEELL_FORENING_ENABLED', 'true')
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', '')
     expect(isEntityTypeCreatable('ideell_forening')).toBe(true)
     expect(creatableEntityTypes()).toEqual(['enskild_firma', 'aktiebolag', 'ideell_forening'])
+  })
+
+  it('offers handelsbolag when its flag is on, independently of the förening flag', () => {
+    vi.stubEnv('NEXT_PUBLIC_IDEELL_FORENING_ENABLED', '')
+    vi.stubEnv('NEXT_PUBLIC_HANDELSBOLAG_ENABLED', 'true')
+    expect(isEntityTypeCreatable('handelsbolag')).toBe(true)
+    expect(creatableEntityTypes()).toEqual(['enskild_firma', 'aktiebolag', 'handelsbolag'])
   })
 })

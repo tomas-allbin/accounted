@@ -38,7 +38,6 @@ function humanTicEntityType(t: string): string {
   if (mapped) return ENTITY_TYPE_LABELS_SV[mapped]
   const planned = mapPlannedLegalForm(t)
   if (planned) return planned.label
-  if (t.toLowerCase().includes('handelsbolag') || t.toLowerCase() === 'hb') return 'Handelsbolag'
   if (t.toLowerCase().includes('kommanditbolag') || t.toLowerCase() === 'kb') return 'Kommanditbolag'
   return t
 }

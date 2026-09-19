@@ -59,8 +59,12 @@ export interface LegalFormProfile {
     settlement: { withdrawal: string; contribution: string }
   }
   filings: {
-    /** The income return the product prepares for the form; null when none is modelled. */
-    incomeReturn: 'INK2' | 'NE' | 'INK3' | null
+    /**
+     * The income return the product prepares for the form; null when none is
+     * modelled. INK4 is a deadline and a name only: the form's numbers are
+     * prepared outside the product (a handelsbolag's delägare file N3A).
+     */
+    incomeReturn: 'INK2' | 'NE' | 'INK3' | 'INK4' | null
     /** Whether the year-end books the year's income tax as a liability (AB 2510/8910). */
     booksCurrentTax: boolean
     /** Periodiseringsfond and överavskrivningar proposals in the year-end wizard. */
@@ -69,6 +73,17 @@ export interface LegalFormProfile {
     arsredovisning: boolean
     /** Frameworks the product offers the form. */
     frameworks: ReadonlyArray<'K1' | 'K2' | 'K3'>
+    /**
+     * When a helårsmoms declaration is due (SFL 26 kap 33-33 b §§). With EU
+     * trade every form files by the 26th of the second month after the
+     * beskattningsår (33 a-b §§ second paragraphs); without it:
+     * - 'income_return': a fysisk person files 12 May with the INK1 (33 a §)
+     * - 'fiscal_year_schedule': a juridisk person follows the räkenskapsår
+     *   table (33 b §)
+     * - 'second_month': the 26th of the second month regardless (33 §; a
+     *   handelsbolag is excepted from 33 b §)
+     */
+    annualVatSchedule: 'income_return' | 'fiscal_year_schedule' | 'second_month'
   }
   /**
    * Swedish nouns that differ by law, for labels that name the thing on its

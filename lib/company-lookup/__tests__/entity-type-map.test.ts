@@ -17,9 +17,15 @@ describe('mapEntityType', () => {
     expect(mapEntityType('Enskild näringsidkare')).toBe('enskild_firma')
   })
 
+  it('maps the exact HB codes and labels to handelsbolag', () => {
+    expect(mapEntityType('HB')).toBe('handelsbolag')
+    expect(mapEntityType('hb')).toBe('handelsbolag')
+    expect(mapEntityType('Handelsbolag')).toBe('handelsbolag')
+  })
+
   it('returns null for unsupported entity types', () => {
-    expect(mapEntityType('HB')).toBeNull()
-    expect(mapEntityType('Handelsbolag')).toBeNull()
+    // A kommanditbolag files INK4 too, but its kommanditdelägare changes
+    // the N3A treatment; it is never mapped onto handelsbolag.
     expect(mapEntityType('KB')).toBeNull()
     expect(mapEntityType('Kommanditbolag')).toBeNull()
     expect(mapEntityType('Stiftelse')).toBeNull()

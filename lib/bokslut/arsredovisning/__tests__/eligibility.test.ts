@@ -25,7 +25,7 @@ function completeProfile() {
 }
 
 describe('evaluateAnnualReportEligibility', () => {
-  it.each(['ideell_forening', 'enskild_firma', 'handelsbolag'])(
+  it.each(['ideell_forening', 'enskild_firma', 'kommanditbolag'])(
     'blocks a form whose profile prepares no årsredovisning (%s)',
     (entityType) => {
       const result = evaluateAnnualReportEligibility({

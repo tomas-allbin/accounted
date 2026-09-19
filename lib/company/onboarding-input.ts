@@ -96,7 +96,7 @@ export const CompanySetupSchema = z
       })
     }
     if (
-      value.entity_type === 'enskild_firma' &&
+      fiscalYearLockedToCalendar(value.entity_type) &&
       value.first_fiscal_year &&
       !value.first_fiscal_year.end.endsWith('-12-31')
     ) {
@@ -104,7 +104,7 @@ export const CompanySetupSchema = z
         code: 'custom',
         path: ['first_fiscal_year', 'end'],
         message:
-          'An enskild firma always closes its fiscal year on 31 December (BFL 3 kap. 1 §): the first year may be shorter or up to 18 months, but must end on 12-31.',
+          'This legal form is bound to the calendar year (BFL 3 kap. 1 §): the first fiscal year may be shorter or up to 18 months, but must end on 12-31.',
       })
     }
     if (value.org_number && normalizeOrgNumber(value.org_number) === null) {

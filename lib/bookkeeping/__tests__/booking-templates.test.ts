@@ -38,7 +38,7 @@ describe('BOOKING_TEMPLATES data integrity', () => {
       expect(t.name_en).toBeTruthy()
       expect(t.group).toBeTruthy()
       expect(['expense', 'income', 'transfer']).toContain(t.direction)
-      expect(['all', 'enskild_firma', 'aktiebolag']).toContain(t.entity_applicability)
+      expect(['all', 'enskild_firma', 'aktiebolag', 'ideell_forening', 'handelsbolag']).toContain(t.entity_applicability)
       expect(t.debit_account).toMatch(/^\d{4}$/)
       expect(t.credit_account).toMatch(/^\d{4}$/)
       expect(['full', 'non_deductible', 'conditional']).toContain(t.deductibility)

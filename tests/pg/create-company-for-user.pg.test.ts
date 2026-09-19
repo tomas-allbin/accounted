@@ -147,7 +147,7 @@ describe('create_company_for_user.pg', () => {
 
   it('rejects an unsupported entity type and an empty name', async () => {
     const userId = await insertAuthUser()
-    await expect(getPool().query(CREATE, [userId, 'X HB', 'handelsbolag', null])).rejects.toThrow(/Invalid entity_type/)
+    await expect(getPool().query(CREATE, [userId, 'X KB', 'kommanditbolag', null])).rejects.toThrow(/Invalid entity_type/)
     await expect(getPool().query(CREATE, [userId, '   ', 'aktiebolag', null])).rejects.toThrow(/p_name is required/)
   })
 })

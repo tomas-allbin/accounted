@@ -17,7 +17,7 @@ describe('ownerFallbackName', () => {
   it('keeps the shared constant while the form is not known', () => {
     expect(ownerFallbackName(null)).toBe(OWNER_FALLBACK_NAME)
     expect(ownerFallbackName(undefined)).toBe(OWNER_FALLBACK_NAME)
-    expect(ownerFallbackName('handelsbolag')).toBe(OWNER_FALLBACK_NAME)
+    expect(ownerFallbackName('kommanditbolag')).toBe(OWNER_FALLBACK_NAME)
   })
 })
 
@@ -40,7 +40,7 @@ describe('resolveExpenseLiabilityAccount', () => {
 
   it('an unknown entity type falls back to the AB rule, never to 2018', () => {
     expect(resolveExpenseLiabilityAccount(undefined, 'owner')).toBe('2893')
-    expect(resolveExpenseLiabilityAccount('handelsbolag', 'owner')).toBe('2893')
+    expect(resolveExpenseLiabilityAccount('kommanditbolag', 'owner')).toBe('2893')
   })
 })
 

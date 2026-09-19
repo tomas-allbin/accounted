@@ -26,6 +26,7 @@ export const SE_AKTIEBOLAG: LegalFormProfile = {
     corporateTaxDispositions: true,
     arsredovisning: true,
     frameworks: ['K2', 'K3'],
+    annualVatSchedule: 'fiscal_year_schedule',
   },
   glossary: { entity: 'bolaget', owner: 'Ägare', meeting: 'årsstämma' },
 }

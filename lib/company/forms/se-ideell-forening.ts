@@ -35,6 +35,7 @@ export const SE_IDEELL_FORENING: LegalFormProfile = {
     corporateTaxDispositions: false,
     arsredovisning: false,
     frameworks: ['K1'],
+    annualVatSchedule: 'fiscal_year_schedule',
   },
   glossary: { entity: 'föreningen', owner: 'Medlem', meeting: 'årsmöte' },
 }

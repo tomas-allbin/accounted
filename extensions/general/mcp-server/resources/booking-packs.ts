@@ -75,7 +75,7 @@ export const bookingPacksResource: McpResource = {
         balance: 'Debits and credits always sum equal. If your computed lines do not balance, you have applied the template wrong: do not adjust an amount to force it.',
       },
       notes: {
-        entity_type: "A template marked 'aktiebolag' or 'enskild_firma' must not be used for the other form; 'all' applies to both.",
+        entity_type: "A template marked with a legal form (aktiebolag, enskild_firma, ideell_forening, handelsbolag) must not be used for another form; 'all' applies to every form.",
         legal_note: 'Where present, it states the statutory limit or condition. Read it before proposing the booking: it is the difference between a template that applies and one that merely looks close.',
         accounts: 'Account numbers are strings and every one is a standard BAS 2026 account, enforced in CI. Never substitute a neighbouring number.',
         company_templates: 'This is the standard catalogue only. A company may have its own templates; those come from the booking-template tools, not from here.',

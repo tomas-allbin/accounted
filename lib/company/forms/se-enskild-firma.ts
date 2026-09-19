@@ -26,6 +26,7 @@ export const SE_ENSKILD_FIRMA: LegalFormProfile = {
     corporateTaxDispositions: false,
     arsredovisning: false,
     frameworks: ['K1'],
+    annualVatSchedule: 'income_return',
   },
   glossary: { entity: 'firman', owner: 'Ägare', meeting: null },
 }

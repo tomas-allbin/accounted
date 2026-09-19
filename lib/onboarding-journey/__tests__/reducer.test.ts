@@ -538,13 +538,13 @@ describe('journeyReducer: robustness', () => {
         type: 'LOOKUP_RESULT',
         outcome: {
           status: 'found',
-          result: lookup({ companyName: 'Sjöutsikten HB', legalEntityType: 'HB' }),
+          result: lookup({ companyName: 'Sjöutsikten KB', legalEntityType: 'KB' }),
         },
       },
     )
     expect(s.step).toBe('form')
     expect(s.plannedForm).toBeNull()
-    expect(s.settings.company_name).toBe('Sjöutsikten HB')
+    expect(s.settings.company_name).toBe('Sjöutsikten KB')
     expect(s.lookupRan).toBe(true)
   })
 })

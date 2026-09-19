@@ -2094,6 +2094,8 @@ export default function JournalEntryForm({
                 all: tTpl('entity_all'),
                 enskild_firma: tTpl('entity_enskild_firma'),
                 aktiebolag: tTpl('entity_aktiebolag'),
+                ideell_forening: tTpl('entity_ideell_forening'),
+                handelsbolag: tTpl('entity_handelsbolag'),
               }}
               initialTemplate={{
                 id: '',

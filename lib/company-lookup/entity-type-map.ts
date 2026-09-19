@@ -40,12 +40,24 @@ const IDEELL_FORENING_VALUES = new Set<string>([
   'ideella föreningar',
 ])
 
+/**
+ * Handelsbolag. Kommanditbolag is deliberately NOT mapped: it files the same
+ * INK4 but the kommanditdelägare's limited liability changes the N3A/JAU
+ * treatment, and SCB's registry code 31 lumps both together, so only an
+ * explicit "handelsbolag" from the registry is trusted.
+ */
+const HANDELSBOLAG_VALUES = new Set<string>([
+  'hb',
+  'handelsbolag',
+])
+
 export function mapEntityType(ticType: string | null | undefined): EntityType | null {
   if (!ticType) return null
   const normalized = ticType.trim().toLowerCase()
   if (AKTIEBOLAG_VALUES.has(normalized)) return 'aktiebolag'
   if (ENSKILD_FIRMA_VALUES.has(normalized)) return 'enskild_firma'
   if (IDEELL_FORENING_VALUES.has(normalized)) return 'ideell_forening'
+  if (HANDELSBOLAG_VALUES.has(normalized)) return 'handelsbolag'
   return null
 }
 
