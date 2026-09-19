@@ -2,6 +2,7 @@ import type { ComposerInputs } from './inputs'
 import type { AtomSelection } from './schemas'
 import {
   ENTITY_TYPE_LABELS_SV,
+  booksCurrentTax,
   filesIncomeReturn,
   hasOwners,
   isEntityType,
@@ -34,9 +35,11 @@ export function fallbackAtomSelection(inputs: ComposerInputs): AtomSelection {
   const hasTaxDispositions = form !== null && supportsCorporateTaxDispositions(form)
   // The owner IS the company: an enskild firma.
   const ownerIsTheCompany = form !== null && usesPersonnummerAsOrgNumber(form)
-  // Owned by someone other than itself: shareholders (an aktiebolag), not
-  // members (a förening) and not the person behind an enskild firma.
-  const hasShareholders = form !== null && hasOwners(form) && !usesPersonnummerAsOrgNumber(form)
+  // Owned by someone other than itself AND taxed in its own right: shareholders
+  // (an aktiebolag). Not members (a förening), not the person behind an
+  // enskild firma, and not the delägare of a handelsbolag, who hold andelar
+  // and are taxed for the result themselves.
+  const hasShareholders = form !== null && hasOwners(form) && booksCurrentTax(form)
 
   const tic = inputs.ticSnapshot as
     | {

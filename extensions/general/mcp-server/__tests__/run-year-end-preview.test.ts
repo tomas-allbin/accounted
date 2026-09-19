@@ -60,7 +60,14 @@ describe('gnubok_run_year_end: form-aware preview', () => {
     expect(String(result.preview.will)).toMatch(/into 2099/)
   })
 
+  it('names 2099 Årets resultat for a handelsbolag', async () => {
+    const result = await stageFor('handelsbolag')
+    expect(result.staged).toBe(true)
+    expect(result.preview.closing_account).toBe('2099')
+    expect(result.preview.closing_account_name).toBe('Årets resultat')
+  })
+
   it('refuses to stage when the company form is unknown instead of defaulting it', async () => {
-    await expect(stageFor('handelsbolag')).rejects.toThrow(/Unknown company entity_type/)
+    await expect(stageFor('kommanditbolag')).rejects.toThrow(/Unknown company entity_type/)
   })
 })

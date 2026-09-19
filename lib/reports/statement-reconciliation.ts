@@ -3,6 +3,7 @@ import { generateTrialBalance } from './trial-balance'
 import { generateIncomeStatement } from './income-statement'
 import { generateINK2Declaration } from './ink2/ink2-engine'
 import { generateNEDeclaration } from './ne-bilaga/ne-engine'
+import { filesIncomeReturn, isEntityType } from '@/lib/company/entity-type'
 
 /**
  * Årets resultat, as every surface reports it, side by side.
@@ -144,11 +145,16 @@ export async function reconcileStatements(
       )
     }
   } else {
+    // A form whose return is named but not modelled (handelsbolag: INK4) is
+    // said so explicitly, so nobody reads "reconciled" as "checked".
+    const named = isEntityType(entityType) ? filesIncomeReturn(entityType) : null
     figures.push({
-      surface: 'Deklaration',
+      surface: named ?? 'Deklaration',
       family: 'statutory',
       aretsResultat: null,
-      note: 'Ingen deklarationsblankett stöds för den här företagsformen.',
+      note: named
+        ? `${named} tas inte fram i Accounted: stäm av resultatet manuellt mot deklarationen.`
+        : 'Ingen deklarationsblankett stöds för den här företagsformen.',
     })
   }
 

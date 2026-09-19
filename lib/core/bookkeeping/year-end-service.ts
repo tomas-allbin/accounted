@@ -27,7 +27,7 @@ import {
 } from '@/lib/bookkeeping/currency-revaluation'
 import { validateBalanceContinuity } from '@/lib/reports/continuity-check'
 import { assessKontantmetodCutoff } from './kontantmetod-cutoff'
-import { resolveCompanyEntityType, resultClosingAccounts } from '@/lib/company/entity-type'
+import { booksCurrentTax, resolveCompanyEntityType, resultClosingAccounts } from '@/lib/company/entity-type'
 import type {
   YearEndValidation,
   YearEndBlocker,
@@ -583,12 +583,14 @@ export async function previewYearEndClosing(
     }
   }
 
-  // Advisory check: an AB closing a profit year should normally have booked
-  // bolagsskatt (Dr 8910 / Cr 2512) in the dispositions step. If no 89xx tax
-  // account is among the accounts being closed, the profit is untaxed. This
-  // is a warning, not a blocker: zero tax is legitimate when underskotts-
-  // avdrag zeroes the taxable result. 8999 is excluded: it is the manual
-  // result-closing account, not a tax account.
+  // Advisory check: a form that books its own income tax (an AB) closing a
+  // profit year should normally have booked bolagsskatt (Dr 8910 / Cr 2512)
+  // in the dispositions step. If no 89xx tax account is among the accounts
+  // being closed, the profit is untaxed. This is a warning, not a blocker:
+  // zero tax is legitimate when underskottsavdrag zeroes the taxable result.
+  // 8999 is excluded: it is the manual result-closing account, not a tax
+  // account. Keyed on the capability, not on the closing account: a
+  // handelsbolag also closes to 2099 but its delägare pay the tax.
   // Scanning resultAccountSummary is equivalent to a full 89xx trial-balance
   // scan: it is built from every class 3-8 account with a non-zero closing
   // balance, regardless of voucher series, so a booked tax entry cannot be
@@ -597,7 +599,7 @@ export async function previewYearEndClosing(
     (a) => a.account_number.startsWith('89') && a.account_number !== '8999'
   )
   const bolagsskattMissing =
-    closingAccount === '2099' && netResult > ORE_TOLERANCE && !hasTaxAccount
+    booksCurrentTax(entityType) && netResult > ORE_TOLERANCE && !hasTaxAccount
 
   return {
     netResult,

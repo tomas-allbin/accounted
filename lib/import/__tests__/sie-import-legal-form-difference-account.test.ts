@@ -45,6 +45,7 @@ const FORMS = [
   { form: 'ideell_forening', closing: '2069', closingName: 'Årets resultat' },
   { form: 'enskild_firma', closing: '2010', closingName: 'Eget kapital' },
   { form: 'aktiebolag', closing: '2099', closingName: 'Årets resultat' },
+  { form: 'handelsbolag', closing: '2099', closingName: 'Årets resultat' },
 ] as const
 
 // --- Table-routing supabase mock (same shape as sie-import-ib-series.test.ts) ---

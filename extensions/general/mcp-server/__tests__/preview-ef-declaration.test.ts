@@ -37,7 +37,7 @@ beforeEach(() => {
 })
 
 describe('gnubok_preview_ef_declaration: legal-form gate', () => {
-  it.each(['aktiebolag', 'ideell_forening'])(
+  it.each(['aktiebolag', 'ideell_forening', 'handelsbolag'])(
     'rejects %s with EF_DECLARATION_WRONG_LEGAL_FORM',
     async (entityType) => {
       let thrown: unknown

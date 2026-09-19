@@ -5,6 +5,7 @@ import {
   parseDateParts,
   validatePeriodDuration,
 } from '@/lib/bookkeeping/validate-period-duration'
+import { fiscalYearLockedToCalendar } from '@/lib/company/entity-type'
 import type { EntityType } from '@/types'
 
 function endsOnDec31(end: string): boolean {
@@ -61,9 +62,9 @@ export function validateFirstPeriod(
     }
   }
 
-  if (entityType === 'enskild_firma' && !endsOnDec31(endDate)) {
+  if (entityType !== undefined && fiscalYearLockedToCalendar(entityType) && !endsOnDec31(endDate)) {
     return {
-      error: 'Enskild firma måste ha slutdatum 31 december (BFL 3 kap.).',
+      error: 'Företagsformen måste ha slutdatum 31 december (BFL 3 kap.).',
       months: monthsBetween(startDate, endDate),
       canSummarise: true,
     }
