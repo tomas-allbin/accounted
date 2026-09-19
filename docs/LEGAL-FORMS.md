@@ -1,6 +1,6 @@
 # Legal Forms: Capability Profiles
 
-A legal form (`EntityType`: `enskild_firma`, `aktiebolag`, `ideell_forening`, next `ekonomisk_forening` and `bostadsrattsforening`) changes what the ledger must do: which equity account a year closes to, whether an owner exists, which tax return is filed, which report exists. This document is the contract for how that variation is expressed in code so that the fourth and fifth form cost one file each, not another sweep of the codebase.
+A legal form (`EntityType`: `enskild_firma`, `aktiebolag`, `ideell_forening`, `handelsbolag`, next `ekonomisk_forening` and `bostadsrattsforening`) changes what the ledger must do: which equity account a year closes to, whether an owner exists, which tax return is filed, which report exists. This document is the contract for how that variation is expressed in code so that the fourth and fifth form cost one file each, not another sweep of the codebase.
 
 Status: proposed 2026-09-17. Merging this document adopts the contract. It applies to every change under `lib/company/**` and to every site that today compares `entity_type` to a string.
 
@@ -54,12 +54,14 @@ export interface LegalFormProfile {
     settlement: { withdrawal: string; contribution: string }
   }
   filings: {
-    /** The return the product prepares for the form; null when none is modelled (ideell: INK3 not built). */
-    incomeReturn: 'INK2' | 'NE' | 'INK3' | null
+    /** The return the product prepares for the form; null when none is modelled (ideell: INK3 not built). INK4 is a deadline only. */
+    incomeReturn: 'INK2' | 'NE' | 'INK3' | 'INK4' | null
     booksCurrentTax: boolean
     corporateTaxDispositions: boolean
     arsredovisning: boolean
     frameworks: ReadonlyArray<'K1' | 'K2' | 'K3'>
+    /** When helårsmoms is due without EU trade (SFL 26 kap. 33-33 b §§): EF with the income return, juridisk person by the räkenskapsår table, handelsbolag the 26th of the second month. */
+    annualVatSchedule: 'income_return' | 'fiscal_year_schedule' | 'second_month'
   }
   /** Swedish words that differ by law. Everything else in copy stays form-neutral. */
   glossary: { entity: string; owner: string; meeting: string }
