@@ -124,6 +124,17 @@ export interface ApiV1Context {
    * `/health`).
    */
   companyId?: string
+  /**
+   * The key's own company (the one it was minted under), or null while an
+   * OAuth-minted key has none yet. Not the URL company: see `companyId`.
+   */
+  keyCompanyId: string | null
+  /**
+   * True when the key is hard-bound to `keyCompanyId`: the wrapper has
+   * already refused any other URL company, and company-less routes (the
+   * company list) must restrict themselves to it.
+   */
+  boundToCompany: boolean
   /** Resolved dry-run flag. Routes that mutate state must honor this. */
   dryRun: boolean
   /** Resolved idempotency key, if supplied. */
@@ -321,6 +332,8 @@ export function withApiV1<P extends DynamicParams = { params: Promise<Record<str
           unattendedCommitLimit: null,
           mode: 'live',
           supabase: createAnonClient(),
+          keyCompanyId: null,
+          boundToCompany: false,
           dryRun: false,
           idempotencyKey: null,
         }
@@ -402,6 +415,27 @@ export function withApiV1<P extends DynamicParams = { params: Promise<Record<str
       const companyId = typeof rawCompanyId === 'string' ? rawCompanyId : undefined
 
       const supabase = createServiceClientNoCookies()
+
+      // A key bound to its company never reaches another one, whatever the
+      // user's memberships say. Checked before the membership read so the
+      // refusal costs nothing, and answered 404 like a non-membership so the
+      // other company's existence is not confirmed.
+      if (
+        companyId !== undefined &&
+        auth.boundToCompany &&
+        auth.companyId !== null &&
+        companyId !== auth.companyId
+      ) {
+        userLog.warn('bound api key used against another company', {
+          companyId,
+          keyCompanyId: auth.companyId,
+          ...forensic,
+        })
+        return await v1ErrorResponseFromCode('NOT_FOUND', userLog, {
+          requestId,
+          details: { companyId },
+        })
+      }
 
       if (companyId !== undefined) {
         const { data: membership, error: membershipErr } = await supabase
@@ -570,6 +604,8 @@ export function withApiV1<P extends DynamicParams = { params: Promise<Record<str
         mode: auth.mode,
         supabase,
         companyId,
+        keyCompanyId: auth.companyId,
+        boundToCompany: auth.boundToCompany === true,
         dryRun,
         idempotencyKey,
       }

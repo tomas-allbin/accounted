@@ -59,6 +59,7 @@ interface ApiKey {
   scopes: string[] | null
   rate_limit_rpm: number
   mode?: 'live' | 'test'
+  bound_to_company?: boolean
   last_used_at: string | null
   revoked_at: string | null
   created_at: string
@@ -179,6 +180,10 @@ export function ApiKeysPanel() {
   // is a key for the user's real company. 'test' is an explicit opt-in: a
   // simulation-only key that forces dry-run on every write (nothing is saved).
   const [newKeyMode, setNewKeyMode] = useState<'live' | 'test'>('live')
+  // Off by default: a consultant's key spans every client company. On, the
+  // REST surface refuses every company but this one, which is what an
+  // unattended agent wants (it cannot pick the wrong company by mistake).
+  const [newKeyBound, setNewKeyBound] = useState(false)
   const [newKeyScopes, setNewKeyScopes] = useState<Set<Scope>>(new Set(ALL_SCOPES))
   const [newKeyValue, setNewKeyValue] = useState('')
 
@@ -250,6 +255,7 @@ export function ApiKeysPanel() {
           name: newKeyName || t('default_key_name'),
           scopes: Array.from(newKeyScopes),
           mode: newKeyMode,
+          bound_to_company: newKeyBound,
           ...(hasSodConflict ? { acknowledge_sod: true } : {}),
         }),
       })
@@ -272,6 +278,7 @@ export function ApiKeysPanel() {
       setShowKeyDialog(true)
       setNewKeyName('')
       setNewKeyMode('live')
+      setNewKeyBound(false)
       setNewKeyScopes(new Set(ALL_SCOPES))
       fetchKeys()
     } catch {
@@ -582,6 +589,11 @@ export function ApiKeysPanel() {
                         {t('badge_test')}
                       </Badge>
                     )}
+                    {key.bound_to_company && (
+                      <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px] font-normal">
+                        {t('badge_bound')}
+                      </Badge>
+                    )}
                   </span>
                   <span className="min-w-0 truncate text-xs text-muted-foreground">
                     {permissionSummary}
@@ -655,6 +667,20 @@ export function ApiKeysPanel() {
               <p className="text-xs text-muted-foreground">
                 {newKeyMode === 'test' ? t('mode_test_help') : t('mode_live_help')}
               </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="key-bound"
+                checked={newKeyBound}
+                onCheckedChange={(checked) => setNewKeyBound(checked === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="key-bound" className="cursor-pointer">
+                  {t('bound_label')}
+                </Label>
+                <p className="text-xs text-muted-foreground">{t('bound_help')}</p>
+              </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-baseline justify-between gap-3">

@@ -51,6 +51,7 @@ registerEndpoint({
     'Fetching a single company you already know the id of: use GET /api/v1/companies/{companyId} for that.',
   pitfalls: [
     'Multi-company keys (e.g. consultants) will see >1 result. Always pass the correct companyId in subsequent paths.',
+    'A key minted with "bound to company" lists exactly one company and gets 404 on every other {companyId}: prefer such a key for an unattended agent, so "the first company in the list" is always the right one.',
     'Archived companies are excluded; if a company disappears the user has been removed from it or it was archived.',
   ],
   example: {
@@ -271,6 +272,12 @@ export const GET = withApiV1('companies.list', async (request, ctx) => {
     .order('joined_at', { ascending: true })
     .order('id', { ascending: true })
     .limit(limit + 1)
+
+  // A bound key sees its own company only, so a caller that takes the first
+  // row cannot land in another company the user happens to belong to.
+  if (ctx.boundToCompany && ctx.keyCompanyId) {
+    query = query.eq('company_id', ctx.keyCompanyId)
+  }
 
   if (decoded) {
     // Compound keyset: joined_at > cursor.ts OR (joined_at = cursor.ts AND id > cursor.id).
