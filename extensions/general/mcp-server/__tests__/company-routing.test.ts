@@ -138,6 +138,42 @@ describe('MCP company routing', () => {
     expect(chain.eq).toHaveBeenCalledWith('company_id', DEFAULT_COMPANY_ID)
   })
 
+  it('refuses another company_id on a bound key as unknown, before the membership read', async () => {
+    // The user IS a member of the other company; the binding wins anyway.
+    const { client, chain } = membershipClient({
+      data: { company_id: OTHER_COMPANY_ID, role: 'owner' },
+      error: null,
+    })
+
+    await expect(
+      resolveMcpCompanyContext({
+        supabase: client as never,
+        userId: 'user-1',
+        defaultCompanyId: DEFAULT_COMPANY_ID,
+        requestedCompanyId: OTHER_COMPANY_ID,
+        boundToCompany: true,
+      })
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(chain.maybeSingle).not.toHaveBeenCalled()
+  })
+
+  it('lets a bound key name its own company explicitly', async () => {
+    const { client } = membershipClient({
+      data: { company_id: DEFAULT_COMPANY_ID, role: 'owner' },
+      error: null,
+    })
+
+    await expect(
+      resolveMcpCompanyContext({
+        supabase: client as never,
+        userId: 'user-1',
+        defaultCompanyId: DEFAULT_COMPANY_ID,
+        requestedCompanyId: DEFAULT_COMPANY_ID,
+        boundToCompany: true,
+      })
+    ).resolves.toMatchObject({ companyId: DEFAULT_COMPANY_ID, isDefault: true })
+  })
+
   it('refuses company-dependent calls on a key whose user has no company yet', async () => {
     // A key minted from the OAuth popup before onboarding (issue #1814) has
     // no default company. The refusal is a distinct, actionable code and

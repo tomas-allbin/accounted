@@ -561,6 +561,13 @@ export interface ActorContext {
    */
   unattendedCommitLimit?: number | null
   /**
+   * The key is hard-bound to its company (api_keys.bound_to_company): the
+   * dispatcher refuses a company_id naming any other company, and the
+   * company list shows only the bound one. Only meaningful for `type:
+   * 'api_key'`; absent or false means the historical multi-company key.
+   */
+  boundToCompany?: boolean
+  /**
    * Distribution-channel marker from `X-Accounted-Client`, the legacy
    * `X-Gnubok-Client`, or the `client` query param (e.g. 'openclaw').
    * Telemetry-only: same trust level as Mcp-Session-Id, never used for auth or
@@ -4101,7 +4108,7 @@ export const tools: McpTool[] = [
       required: ['companies', 'count', 'default_company_id'],
     },
     annotations: ANNOTATIONS_READ_ONLY,
-    async execute(_args, defaultCompanyId, userId, supabase) {
+    async execute(_args, defaultCompanyId, userId, supabase, actor) {
       type CompanyRow = {
         id: string
         name: string
@@ -4116,11 +4123,17 @@ export const tools: McpTool[] = [
       }
 
       const memberships = (await getUserCompanies(supabase, userId)) as unknown as MembershipRow[]
+      // A bound key lists its own company only: the dispatcher already refuses
+      // every other company_id, and showing one the agent can never use only
+      // invites it to ask which company applies.
+      const bound = actor?.boundToCompany === true && defaultCompanyId ? defaultCompanyId : null
       const accessible = memberships.flatMap((membership) => {
         const company = Array.isArray(membership.companies)
           ? membership.companies[0]
           : membership.companies
-        return company && company.archived_at === null ? [{ membership, company }] : []
+        if (!company || company.archived_at !== null) return []
+        if (bound && company.id !== bound) return []
+        return [{ membership, company }]
       })
       const companyIds = accessible.map(({ company }) => company.id)
       const displayNames = new Map<string, string>()
@@ -23849,6 +23862,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   let apiKeyName: string | undefined
   let keyMode: ApiKeyMode = 'live'
   let unattendedCommitLimit: number | null = null
+  let boundToCompany = false
   if (token) {
     const authResult = await validateApiKey(token)
     if ('error' in authResult) {
@@ -23872,6 +23886,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
       apiKeyName,
       mode: keyMode,
       unattendedCommitLimit,
+      boundToCompany,
     } = authResult)
   } else {
     // Anonymous traffic has no key to rate-limit on: per truncated IP instead.
@@ -23905,6 +23920,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
         id: apiKeyId,
         label: apiKeyName ?? 'Unnamed API key',
         unattendedCommitLimit,
+        boundToCompany,
         sessionId,
         client,
       }
@@ -24317,6 +24333,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
             userId,
             defaultCompanyId: companyId,
             requestedCompanyId: extracted.requestedCompanyId,
+            boundToCompany,
           })
           assertMcpCompanyWriteAccess(companyContext, requiredScope)
           effectiveCompanyId = companyContext.companyId

@@ -233,6 +233,7 @@ describe('POST /api/settings/api-keys', () => {
         method: 'POST',
         body: { name: 'agent', scopes: ['reports:read'], bound_to_company: true },
       }),
+      { params: Promise.resolve({}) },
     )
     const { status } = await parseJsonResponse(res)
     expect(status).toBe(200)
