@@ -1049,6 +1049,45 @@ export async function getReconciliationStatus(
 // ============================================================
 
 /**
+ * The skip reason for a verifikat with no line on the reconciled ledger.
+ *
+ * Says where the verifikat's bank leg actually sits when it has one. A bare
+ * "saknar rad på 1930" reads as "book a 1930 line", and on a company whose
+ * books live on 1941 with a seeded, never-used 1930 cash account, the only
+ * way to obey is to book real vouchers to the wrong ledger (the HB pilot,
+ * 2026-09-20: 0 lines on 1930 in the whole company, seven years on 1941).
+ * The mapping of the cash account is the thing to fix, so the message names
+ * it. Never a fatal path: the diagnosis query failing falls back to the
+ * bare message.
+ */
+export async function describeMissingBankLine(
+  supabase: SupabaseClient,
+  journalEntryId: string,
+  allowedLineAccounts: string[],
+  subject: string = 'Verifikationen',
+): Promise<string> {
+  const base = `${subject} saknar rad på ${allowedLineAccounts.join(' eller ')}`
+  const { data: bankLines } = await supabase
+    .from('journal_entry_lines')
+    .select('account_number')
+    .eq('journal_entry_id', journalEntryId)
+    .like('account_number', '19%')
+  const elsewhere = [
+    ...new Set(
+      ((bankLines ?? []) as Array<{ account_number: string }>)
+        .map((line) => line.account_number)
+        .filter((account) => !allowedLineAccounts.includes(account)),
+    ),
+  ].sort()
+  if (elsewhere.length === 0) return base
+  return (
+    `${base}; dess bankrad ligger på ${elsewhere.join(' och ')}. ` +
+    `Kassakontot som stäms av är kopplat till ${allowedLineAccounts[0]}: om företaget bokför banken på ${elsewhere[0]}, ` +
+    `koppla kassakontot dit (cash-accounts) i stället för att boka om verifikatet.`
+  )
+}
+
+/**
  * Manually link a transaction to an existing journal entry.
  * Validates that the journal entry has a bank account line and amounts are directionally compatible.
  */
@@ -1157,7 +1196,10 @@ export async function manualLink(
     .in('account_number', allowedLineAccounts)
 
   if (!lines || lines.length === 0) {
-    return { success: false, error: `Verifikationen saknar rad på ${allowedLineAccounts.join(' eller ')}` }
+    return {
+      success: false,
+      error: await describeMissingBankLine(supabase, journalEntryId, allowedLineAccounts),
+    }
   }
 
   // When the voucher's bank leg sits on a SIBLING ledger only, the row moves
@@ -1454,7 +1496,10 @@ export async function linkTransactionToVouchers(
   for (const input of allocations) {
     const label = labelOf(input.journal_entry_id)
     if (!netByEntry.has(input.journal_entry_id)) {
-      return { success: false, error: `Verifikat ${label} saknar rad på ${accountNumber}` }
+      return {
+        success: false,
+        error: await describeMissingBankLine(supabase, input.journal_entry_id, [accountNumber], `Verifikat ${label}`),
+      }
     }
     const net = netByEntry.get(input.journal_entry_id) ?? null
     if (net === null) {

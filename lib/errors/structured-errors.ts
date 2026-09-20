@@ -2504,6 +2504,28 @@ const SIE_IMPORT: Record<string, StructuredErrorEntry> = {
   },
 }
 
+/**
+ * The bank account as a setup step (lib/cash-accounts/setup.ts): v1
+ * cash-accounts.create / .update and the MCP gnubok_configure_cash_account.
+ */
+const CASH_ACCOUNT_SETUP: Record<string, StructuredErrorEntry> = {
+  CASH_ACCOUNT_NOT_FOUND: {
+    httpStatus: 404,
+    message_sv: 'Bankkontot hittades inte.',
+    message_en: 'Bank account not found.',
+  },
+  CASH_ACCOUNT_LEDGER_NOT_IN_CHART: {
+    httpStatus: 400,
+    message_sv: 'Kontot finns inte som aktivt konto i företagets kontoplan.',
+    message_en: 'The ledger account is not an active account in the company chart of accounts. Add it (accounts.create) or import the books first.',
+  },
+  CASH_ACCOUNT_PRIMARY_MUST_STAY_ENABLED: {
+    httpStatus: 409,
+    message_sv: 'Företagets primära bankkonto kan inte avaktiveras eller fråntas flaggan. Gör ett annat konto primärt först.',
+    message_en: 'The primary bank account cannot be disabled or demoted. Make another account primary first; that clears the old flag in the same write.',
+  },
+}
+
 const BANK_FILE: Record<string, StructuredErrorEntry> = {
   BANK_FILE_NO_FILE: {
     httpStatus: 400,
@@ -5107,6 +5129,7 @@ const REGISTRY: Record<string, StructuredErrorEntry> = {
   ...SIE_EXPORT,
   ...TAX_DECL,
   ...SIE_IMPORT,
+  ...CASH_ACCOUNT_SETUP,
   ...BANK_FILE,
   ...BANK_SYNC,
   ...SKATTEKONTO_FILE,

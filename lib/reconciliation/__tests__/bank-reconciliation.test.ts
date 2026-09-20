@@ -1374,6 +1374,28 @@ describe('manualLink', () => {
     expect(result.error).toBe('Verifikationen saknar rad på 1931 eller 1940')
   })
 
+  it('names the ledger the bank leg actually sits on when the reconciled cash account is mismapped', async () => {
+    // The HB pilot (2026-09-20): every voucher on 1941, the seeded 1930 cash
+    // account never used. The bare message told the agent to rebook to 1930;
+    // the fix is the cash-account mapping, so the message must say so.
+    const { supabase, enqueue } = createQueueMockSupabase()
+    const tx = makeTransaction({ id: 'tx-1', journal_entry_id: null })
+
+    enqueue({ data: tx })
+    enqueue({ data: { id: 'je-1', user_id: 'company-1', status: 'posted' } })
+    enqueue({ data: [] }) // no line on 1930
+    enqueue({ data: [{ account_number: '1941' }, { account_number: '1941' }] }) // the voucher's 19xx lines
+
+    const result = await manualLink(supabase as never, 'company-1', 'tx-1', 'je-1', 'user-1', '1930')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe(
+      'Verifikationen saknar rad på 1930; dess bankrad ligger på 1941. ' +
+        'Kassakontot som stäms av är kopplat till 1930: om företaget bokför banken på 1941, ' +
+        'koppla kassakontot dit (cash-accounts) i stället för att boka om verifikatet.',
+    )
+  })
+
   it('allows N:1, does not reject when the verifikat already has a linked transaction', async () => {
     const { supabase, enqueue } = createQueueMockSupabase()
     // This transaction is itself unlinked; the TARGET entry already has another

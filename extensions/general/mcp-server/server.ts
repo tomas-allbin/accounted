@@ -156,6 +156,7 @@ import { resolveAgentWorklist } from '@/lib/receipt-hunt/agent-worklist'
 import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { expandParty } from '@/lib/parties/party-api'
 import { listForCompany as listCashAccountsForCompany } from '@/lib/cash-accounts/service'
+import { configureCashAccount } from '@/lib/cash-accounts/setup'
 import {
   isPersonalNumberOrgNumberDisallowed,
   normalizeReroutedPersonalNumber,
@@ -13923,6 +13924,64 @@ export const tools: McpTool[] = [
         balance_updated_at: row.balance_updated_at ?? null,
       }))
       return { cash_accounts: cashAccounts, count: cashAccounts.length }
+    },
+  },
+
+  {
+    name: 'gnubok_configure_cash_account',
+    keywords: ['bankkonto', 'kassakonto', 'primärt bankkonto', 'företagskonto', '1930', '1941', 'koppla bankkonto'],
+    title: 'Configure Cash Account',
+    description: 'Set which BAS ledger the bank lives on: find or create the cash account on ledger_account and make it primary or enabled. Company setup, writes no bokföring. Use before importing bank files or reconciling when the books are not on 1930.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        ledger_account: {
+          type: 'string',
+          pattern: '^19[2-9]\\d$',
+          description: 'Bank ledger 1920-1999, active in the company chart (e.g. "1941")',
+        },
+        currency: { type: 'string', description: 'ISO 4217; default SEK' },
+        name: { type: ['string', 'null'], maxLength: 100, description: 'Display name, e.g. "Länsförsäkringar företagskonto"' },
+        is_primary: { type: 'boolean', description: 'true makes this the company primary bank account (clears the previous one)' },
+        enabled: { type: 'boolean', description: 'false retires an unused account; the primary cannot be disabled' },
+      },
+      required: ['ledger_account'],
+    },
+    outputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        cash_account: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            cash_account_id: { type: 'string' },
+            ledger_account: { type: 'string' },
+            name: { type: ['string', 'null'] },
+            currency: { type: 'string' },
+            iban: { type: ['string', 'null'] },
+            is_primary: { type: 'boolean' },
+            enabled: { type: 'boolean' },
+            source: { type: 'string', enum: ['enable_banking', 'manual', 'sie_import'] },
+          },
+          required: ['cash_account_id', 'ledger_account', 'name', 'currency', 'iban', 'is_primary', 'enabled', 'source'],
+        },
+        account_key: { type: 'string', description: 'The reconciliation key for this account: "bank:<cash_account_id>"' },
+      },
+      required: ['cash_account', 'account_key'],
+    },
+    annotations: ANNOTATIONS_IDEMPOTENT_WRITE,
+    catalogVisibility: 'search',
+    async execute(args, companyId, _userId, supabase) {
+      const cashAccount = await configureCashAccount(supabase, companyId, {
+        ledger_account: args.ledger_account as string,
+        currency: typeof args.currency === 'string' ? args.currency : undefined,
+        name: typeof args.name === 'string' || args.name === null ? (args.name as string | null) : undefined,
+        is_primary: typeof args.is_primary === 'boolean' ? args.is_primary : undefined,
+        enabled: typeof args.enabled === 'boolean' ? args.enabled : undefined,
+      })
+      return { cash_account: cashAccount, account_key: `bank:${cashAccount.cash_account_id}` }
     },
   },
 

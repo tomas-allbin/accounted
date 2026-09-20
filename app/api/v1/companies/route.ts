@@ -111,6 +111,7 @@ registerEndpoint({
     'Not idempotent, and Idempotency-Key is not honoured on this company-less route: a retry after a network failure creates a second company. List GET /api/v1/companies before retrying.',
     'org_number is required for a VAT-registered company (the invoice momsregistreringsnummer derives from it), and f_skatt must be stated explicitly: F-skatt approval is never assumed.',
     'accounting_method may be omitted: it then defaults by form (aktiebolag accrual, enskild firma cash) and the response shows the resolved value. The cash default is only legal when turnover normally stays under 3 MSEK (BFL 4 kap 4 §): send accrual explicitly for a larger enskild firma.',
+    'The new company gets ONE cash account, on 1930, marked primary. A company that banks on another ledger (an imported history on 1941, say) must make that ledger its primary cash account with POST .../cash-accounts { ledger_account, is_primary: true } before importing bank files or reconciling: every "the company\'s bank" default, the reconcile bridge included, otherwise points at the unused 1930.',
   ],
   example: {
     request: {

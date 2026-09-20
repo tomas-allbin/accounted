@@ -217,6 +217,8 @@ export const TOOL_SCOPE_MAP: Record<string, ApiKeyScope> = {
   // Transactions
   gnubok_list_uncategorized_transactions:     'transactions:read',
   gnubok_list_cash_accounts:                  'transactions:read',
+  // Which ledger the bank lives on is company setup, like the settings tool.
+  gnubok_configure_cash_account:              'companies:write',
   gnubok_list_transactions_without_documents: 'transactions:read',
   gnubok_create_transactions:                 'transactions:write',
   gnubok_categorize_transaction:              'transactions:write',

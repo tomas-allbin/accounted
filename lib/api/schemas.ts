@@ -2555,6 +2555,28 @@ export const CreateCashAccountSchema = z.object({
   payee: InvoicePaymentAccountSchema.optional(),
 }).strict()
 
+/**
+ * POST /api/v1/companies/{companyId}/cash-accounts: the bank account as a
+ * setup step (lib/cash-accounts/setup.ts). Find-or-create on the ledger,
+ * then flags; the same shape the MCP tool gnubok_configure_cash_account takes.
+ */
+export const V1CashAccountCreateSchema = z.object({
+  ledger_account: z.string().regex(/^19[2-9]\d$/, 'Bankkonton bokförs på 1920-1999'),
+  currency: CurrencySchema.optional(),
+  name: z.string().trim().min(1).max(100).nullable().optional(),
+  is_primary: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+}).strict()
+
+/** PATCH /api/v1/companies/{companyId}/cash-accounts/{cashAccountId}: flags only. */
+export const V1CashAccountUpdateSchema = z.object({
+  is_primary: z.boolean().optional(),
+  enabled: z.boolean().optional(),
+  name: z.string().trim().min(1).max(100).nullable().optional(),
+}).strict().refine((body) => Object.keys(body).length > 0, {
+  message: 'Inget att uppdatera',
+})
+
 /** PUT /api/cash-accounts/payee-defaults: which account invoices in a currency pay to. */
 export const SetInvoicePayeeDefaultSchema = z.object({
   currency: CurrencySchema,
