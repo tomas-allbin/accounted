@@ -22,6 +22,7 @@ Cursor-paginated list of journal entries ordered by created_at DESC, id ASC (new
 - voucher_number=0 indicates a draft that has not been committed. Posted entries always have voucher_number > 0.
 - Ordering is by created_at (when the verifikat was booked), not entry_date. A backdated verifikat appears where it was booked: filter on ?date_from / ?date_to when you need entry_date ranges, and walk the whole cursor chain when you need a full period.
 - Cursor pagination: pass ?cursor=<next_cursor> from the previous response. A stale or tampered cursor is ignored and the first page is returned again.
+- The date filters are named date_from / date_to. Unknown query parameters (?from, ?to, ?period_id, ...) are rejected with VALIDATION_ERROR listing unknown_params and allowed_params, not silently ignored: an ignored date filter returns every year and looks like a correct answer.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|---|---|
