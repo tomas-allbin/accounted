@@ -126,8 +126,9 @@ export type QueryParamsResult = { ok: true } | { ok: false; response: Response }
  * of `from_date=`) got a full-period report back with no signal that its
  * intent was ignored. For date-scoped financial reports that's dangerous:
  * the caller believes it holds a January-July resultatrapport when it holds
- * the whole year. Scoped to the report routes that opt in; not a global v1
- * behavior change.
+ * the whole year. The journal-entry list opts in for the same reason: a
+ * dropped `from=` / `to=` returned every verifikat the company ever booked.
+ * Scoped to the routes that opt in; not a global v1 behavior change.
  */
 // Params the withApiV1 wrapper itself reads on every request; a route-level
 // allowlist must never reject them.
