@@ -66,11 +66,12 @@ the agent might already have created via \`gnubok_create_voucher\`).
 For the bank-side gap:
 
 1. \`gnubok_list_uncategorized_transactions(limit=20)\`. Page through if needed.
-2. For each, decide: is this an income payment for a known invoice, or an expense?
-3. **Income** that matches an open invoice: \`gnubok_match_transaction_to_invoice\`: keeps AR clean.
-4. **Income** without a matching invoice (refund, deposit, owner contribution): \`gnubok_categorize_transaction\` with the appropriate category.
-5. **Expense**: \`gnubok_suggest_categories\` first (uses counterparty templates + history): accept the top suggestion if confidence is high. Otherwise pick from the category list manually.
-6. **Owner draw / private withdrawal** (EF only): category \`private\` posts to 2013.
+2. **Underlag first.** Before booking a row, look for its receipt or supplier invoice: \`gnubok_list_unmatched_documents\` (and \`gnubok_get_document_content\` to read one), then \`gnubok_attach_document_to_transaction\`. Attach BEFORE categorizing: the document decides account and VAT, the bank text does not. A row with no underlag is booked without VAT deduction and noted as "kvitto saknas", or left for the user; never invented from the bank text.
+3. For each, decide: is this an income payment for a known invoice, or an expense?
+4. **Income** that matches an open invoice: \`gnubok_match_transaction_to_invoice\`: keeps AR clean.
+5. **Income** without a matching invoice (refund, deposit, owner contribution): \`gnubok_categorize_transaction\` with the appropriate category.
+6. **Expense**: \`gnubok_suggest_categories\` first (uses counterparty templates + history): accept the top suggestion if confidence is high. Otherwise pick from the category list manually.
+7. **Owner draw / private withdrawal** (EF only): category \`private\` posts to 2013.
 
 Each call stages a pending operation: the user approves in the web app.
 

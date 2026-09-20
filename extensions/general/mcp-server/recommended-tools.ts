@@ -48,6 +48,15 @@ export const RECOMMENDED_WORKFLOW_LOADOUTS: readonly WorkflowLoadout[] = [
     skill: 'bank-reconciliation',
     tools: [
       'gnubok_list_uncategorized_transactions',
+      // Underlag first (shared-rules.ts, the has_underlag gate in
+      // direct-booking.ts): a bank row is booked from its receipt or invoice,
+      // not from the bank text. An agent bootstrapping from this loadout
+      // never saw the document tools, so it categorised without them (HB
+      // pilot, 2026-09-20).
+      'gnubok_list_unmatched_documents',
+      'gnubok_get_document_content',
+      'gnubok_attach_document_to_transaction',
+      'gnubok_list_verifikat_without_documents',
       'gnubok_suggest_categories',
       'gnubok_categorize_transaction',
       'gnubok_match_transaction_to_invoice',
