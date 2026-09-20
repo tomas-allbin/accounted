@@ -610,18 +610,19 @@ export function withApiV1<P extends DynamicParams = { params: Promise<Record<str
       //     the documented "preview, then commit with the same key" flow used
       //     to lose the commit. A simulation has nothing worth replaying.
       //
-      //     Never cache a 429 either: a throttle says "not now", and replaying
-      //     it under the same key would turn a 15-minute cooldown into the
-      //     cache's 24-hour TTL (the documented retry is "same request after
-      //     Retry-After", which is exactly a same-key retry).
-      if (
-        idempotencyKey &&
-        isMutation &&
-        companyId &&
-        !dryRun &&
-        response.status < 500 &&
-        response.status !== 429
-      ) {
+      //     Only a SUCCESS is cached. The key exists to stop a retry repeating
+      //     a side effect, and a refused request produced none: caching the
+      //     refusal instead pins a verdict that was only ever true of the
+      //     state at that moment. A 4xx is almost always a statement about
+      //     something outside this request (the verifikat is not committed
+      //     yet, the period is still locked, the customer does not exist), so
+      //     replaying it answers the retry that follows the fix with the stale
+      //     no, for the cache's full 24 hours, and as a 400 wearing the
+      //     original error code and request_id. The 429 carve-out was the same
+      //     bug seen on one status: a throttle says "not now", and the
+      //     documented retry after Retry-After is exactly a same-key retry.
+      //     Re-running the handler is safe precisely because nothing happened.
+      if (idempotencyKey && isMutation && companyId && !dryRun && response.status < 400) {
         try {
           const body = await response.clone().json().catch(() => ({}))
           const reqHash = buildRequestHash({
@@ -630,14 +631,13 @@ export function withApiV1<P extends DynamicParams = { params: Promise<Record<str
             body: bodyForHash,
             dryRun,
           })
-          const status: 'success' | 'error' = response.status >= 400 ? 'error' : 'success'
           await storeIdempotencyResponse(
             supabase,
             auth.userId,
             companyId,
             idempotencyKey,
             reqHash,
-            status,
+            'success',
             body as Record<string, unknown>,
             'api_route',
           )
