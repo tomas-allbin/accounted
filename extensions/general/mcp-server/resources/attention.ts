@@ -64,13 +64,21 @@ export const attentionResource: McpResource = {
       // the "booked" anchors (lib/transactions/is-booked.ts). Rows bulk-booked
       // into a samlingsverifikat or split over several verifikat (1:N) are
       // anchored through transaction_voucher_links and are subtracted below.
+      // Same definition of "unbooked" as gnubok_list_uncategorized_transactions:
+      // not ignored, and is_business NULL (imported, not yet classified) or
+      // true. `is_business = true` alone hid every freshly imported row
+      // (ingestTransactions inserts NULL) until someone categorised it, so a
+      // company with 58 unbooked bank rows read total_items 0 (HB pilot,
+      // 2026-09-20). Rows marked private (false) are booked as eget uttag on
+      // categorisation and are not "unbooked work" here either way.
       fetchAllRows<{ id: string }>(({ from, to }) =>
         supabase
           .from('transactions')
           .select('id')
           .eq('company_id', companyId)
           .is('journal_entry_id', null)
-          .eq('is_business', true)
+          .eq('is_ignored', false)
+          .or('is_business.is.null,is_business.eq.true')
           .order('id')
           .range(from, to),
       ).catch(() => [] as Array<{ id: string }>),
@@ -79,7 +87,8 @@ export const attentionResource: McpResource = {
         .select('id, date, amount, currency, description, merchant_name')
         .eq('company_id', companyId)
         .is('journal_entry_id', null)
-        .eq('is_business', true)
+        .eq('is_ignored', false)
+        .or('is_business.is.null,is_business.eq.true')
         .order('date', { ascending: true })
         .limit(SAMPLE_LIMIT * 4),
       supabase

@@ -83,6 +83,20 @@ describe('Accounted://attention', () => {
     expect(findCalls('invoices', 'eq')).toContainEqual(['document_type', 'invoice'])
   })
 
+  it('counts imported, not yet classified rows (is_business NULL) as unbooked, and skips ignored rows', async () => {
+    // Same definition as gnubok_list_uncategorized_transactions. Filtering on
+    // is_business = true hid every freshly imported row until someone
+    // categorised it: 58 unbooked bank rows read as total_items 0.
+    const { supabase, enqueue, findCalls } = createQueuedMockSupabase()
+    enqueueEmpty(enqueue)
+
+    await attentionResource.read(ctx(supabase))
+
+    expect(findCalls('transactions', 'or')).toContainEqual(['is_business.is.null,is_business.eq.true'])
+    expect(findCalls('transactions', 'eq')).toContainEqual(['is_ignored', false])
+    expect(findCalls('transactions', 'eq')).not.toContainEqual(['is_business', true])
+  })
+
   it('classifies recently-unbooked transactions as warning', async () => {
     const { supabase, enqueue } = createQueuedMockSupabase()
     const today = new Date().toISOString().slice(0, 10)
