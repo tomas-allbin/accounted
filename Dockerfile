@@ -48,6 +48,12 @@ ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=__NEXT_PUBLIC_TURNSTILE_SITE_KEY__
 # Keep the branding placeholder intact through prebuild's inject script so
 # docker-entrypoint.sh can substitute the runtime value into public/sw.js.
 ENV NEXT_PUBLIC_BRANDING_APP_NAME=__NEXT_PUBLIC_BRANDING_APP_NAME__
+# Creation gates for the legal forms still in beta (lib/company/entity-type.ts,
+# CREATION_FLAG_READERS). Without a sentinel the flag is inlined as undefined at
+# build time and no operator setting can ever switch the form on in a prebuilt
+# image; the DB CHECK and the chart seed already accept both forms.
+ENV NEXT_PUBLIC_IDEELL_FORENING_ENABLED=__NEXT_PUBLIC_IDEELL_FORENING_ENABLED__
+ENV NEXT_PUBLIC_HANDELSBOLAG_ENABLED=__NEXT_PUBLIC_HANDELSBOLAG_ENABLED__
 
 ENV NEXT_TELEMETRY_DISABLED=1
 

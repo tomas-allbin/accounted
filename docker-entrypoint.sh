@@ -98,6 +98,10 @@ if [ -n "$SUBST_PATHS" ]; then
   E_SESSION_TIMEOUT_FORCE_ALL=$(sed_esc "${NEXT_PUBLIC_SESSION_TIMEOUT_FORCE_ALL:-}")
   E_TURNSTILE_SITE_KEY=$(sed_esc "${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}")
   E_BRANDING_APP_NAME=$(sed_esc "${NEXT_PUBLIC_BRANDING_APP_NAME:-Gnubok}")
+  # Beta legal forms are closed unless the operator opts in: an empty value
+  # folds to off in flagEnabled(), same as an unreplaced sentinel would.
+  E_IDEELL_FORENING_ENABLED=$(sed_esc "${NEXT_PUBLIC_IDEELL_FORENING_ENABLED:-}")
+  E_HANDELSBOLAG_ENABLED=$(sed_esc "${NEXT_PUBLIC_HANDELSBOLAG_ENABLED:-}")
 
   # File-type coverage:
   #   *.js: client + server bundles
@@ -123,7 +127,9 @@ if [ -n "$SUBST_PATHS" ]; then
         -e "s|__NEXT_PUBLIC_SESSION_WARNING_MS__|${E_SESSION_WARNING_MS}|g" \
         -e "s|__NEXT_PUBLIC_SESSION_TIMEOUT_FORCE_ALL__|${E_SESSION_TIMEOUT_FORCE_ALL}|g" \
         -e "s|__NEXT_PUBLIC_TURNSTILE_SITE_KEY__|${E_TURNSTILE_SITE_KEY}|g" \
-        -e "s|__NEXT_PUBLIC_BRANDING_APP_NAME__|${E_BRANDING_APP_NAME}|g"
+        -e "s|__NEXT_PUBLIC_BRANDING_APP_NAME__|${E_BRANDING_APP_NAME}|g" \
+        -e "s|__NEXT_PUBLIC_IDEELL_FORENING_ENABLED__|${E_IDEELL_FORENING_ENABLED}|g" \
+        -e "s|__NEXT_PUBLIC_HANDELSBOLAG_ENABLED__|${E_HANDELSBOLAG_ENABLED}|g"
 fi
 
 # ─── Make the served bundle immutable (defense in depth) ───

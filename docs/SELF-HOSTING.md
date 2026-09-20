@@ -120,6 +120,16 @@ separate random value if you want to rotate it independently. Changing either
 signing secret invalidates existing timeout cookies and requires users to sign
 in again.
 
+Two legal forms are still in beta and are not offered in onboarding unless you
+switch them on. The database accepts both regardless, so no migration is
+involved, and the image carries a placeholder for each flag: the entrypoint
+substitutes your value at container start, so a restart is enough.
+
+```bash
+NEXT_PUBLIC_IDEELL_FORENING_ENABLED=true
+NEXT_PUBLIC_HANDELSBOLAG_ENABLED=true
+```
+
 ## 5. Start the Application
 
 ```bash

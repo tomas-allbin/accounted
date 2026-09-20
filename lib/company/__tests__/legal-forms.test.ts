@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { BAS_REFERENCE } from '@/lib/bookkeeping/bas-data'
+import { flagEnabled } from '@/lib/env/public-flags'
 import { LEGAL_FORMS, PLANNED_LEGAL_FORMS } from '@/lib/company/forms'
 import type { LegalFormProfile } from '@/lib/company/forms'
 import {
@@ -19,6 +22,8 @@ import {
   supportsCorporateTaxDispositions,
   templateAccountForForm,
 } from '@/lib/company/entity-type'
+
+const readRepoFile = (file: string) => readFileSync(path.join(process.cwd(), file), 'utf8')
 
 const forms = [...ENTITY_TYPES]
 const basNumbers = new Set(BAS_REFERENCE.map((a) => a.account_number))
@@ -88,6 +93,27 @@ describe('legal forms: the registry', () => {
       const { creationFlag } = LEGAL_FORMS[form]
       if (!creationFlag) continue
       expect(creationFlagReader(creationFlag), `${form}: no reader for ${creationFlag}`).toBeTypeOf('function')
+    }
+  })
+
+  it('bakes a Docker sentinel for every creation flag, and reads an unreplaced one as off', () => {
+    // A creation flag with a reader but no sentinel is off forever in a
+    // prebuilt image: Next.js inlines the build-time value (undefined) into the
+    // bundle, so the operator's container env can never reach the picker. The
+    // Dockerfile must build with the placeholder and the entrypoint must sed it.
+    const dockerfile = readRepoFile('Dockerfile')
+    const entrypoint = readRepoFile('docker-entrypoint.sh')
+    for (const form of forms) {
+      const { creationFlag } = LEGAL_FORMS[form]
+      if (!creationFlag) continue
+      const sentinel = `__${creationFlag}__`
+      expect(dockerfile, `${form}: no ENV ${creationFlag} sentinel`).toContain(
+        `${creationFlag}=${sentinel}`,
+      )
+      expect(entrypoint, `${form}: entrypoint never substitutes ${sentinel}`).toContain(sentinel)
+      // Belt to that: a substitution that failed leaves the form closed rather
+      // than matching some truthy heuristic.
+      expect(flagEnabled(sentinel), `${form}: ${sentinel} reads as on`).toBe(false)
     }
   })
 

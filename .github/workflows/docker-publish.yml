@@ -27,9 +27,15 @@ on:
     tags: ['v*.*.*']
   workflow_dispatch: {}
 
+# The image repository follows whoever owns the checkout, so upstream keeps
+# publishing ghcr.io/erp-mafia/gnubok and a fork publishes under its own owner
+# without editing this file (a hard-coded name made every fork's run fail on
+# `denied: permission_denied` against a package it does not own). GHCR requires
+# a lowercase path while an owner login may carry capitals, so each job folds
+# the case before the name is used.
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: erp-mafia/gnubok
+  IMAGE_NAME: ${{ github.repository_owner }}/gnubok
 
 jobs:
   build:
@@ -52,6 +58,9 @@ jobs:
       packages: write
 
     steps:
+      - name: Normalize image name
+        run: echo "IMAGE_NAME=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # The build pushes to GHCR via docker/login-action, never over git, so
@@ -204,6 +213,9 @@ jobs:
       security-events: write
 
     steps:
+      - name: Normalize image name
+        run: echo "IMAGE_NAME=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - name: Download digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
