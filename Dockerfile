@@ -57,6 +57,13 @@ ENV NEXT_PUBLIC_HANDELSBOLAG_ENABLED=__NEXT_PUBLIC_HANDELSBOLAG_ENABLED__
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Heap for `next build`. Upstream CI gives the same build 8 GB
+# (core-build.yml); a local build on a small box needs the operator to pass
+# e.g. --build-arg BUILD_NODE_OPTIONS=--max-old-space-size=6144. Builder
+# stage only: the runner stage never inherits it.
+ARG BUILD_NODE_OPTIONS=
+ENV NODE_OPTIONS=${BUILD_NODE_OPTIONS}
+
 RUN npm run build
 
 # ── Stage 4: Runner ──
