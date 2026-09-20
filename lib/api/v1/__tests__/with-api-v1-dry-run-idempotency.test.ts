@@ -374,6 +374,43 @@ describe('withApiV1: idempotent replay of real commits (must not regress)', () =
     expect(calls).toBe(2)
   })
 
+  // The general case the 429 carve-out was one instance of. A refused write
+  // made no side effect, so there is nothing to replay: the verdict belonged to
+  // the state at that moment (an uncommitted verifikat, a locked period), and
+  // pinning it answers the retry that follows the fix with the stale no, as a
+  // 400 carrying the original error code and request_id, for a full 24 hours.
+  it('never caches a 4xx refusal so a same-key retry re-runs once the cause is gone', async () => {
+    let calls = 0
+    const route = withApiV1<{ params: Promise<{ companyId: string }> }>(
+      'invoices.create',
+      async (_request, ctx) => {
+        calls += 1
+        if (calls === 1) {
+          return v1ErrorResponseFromCode('NOT_FOUND', ctx.log, {
+            requestId: ctx.requestId,
+            details: { resource: 'journal_entry' },
+          })
+        }
+        return created({ id: 'inv-after-fix' }, { requestId: ctx.requestId })
+      },
+      { requireScope: 'invoices:write' },
+    )
+
+    const refused = await route(postInvoice({ key: 'key-14' }), companyParams(COMPANY_ID))
+    expect(refused.status).toBe(404)
+    expect(mockStoreIdempotency).not.toHaveBeenCalled()
+
+    const retry = await route(postInvoice({ key: 'key-14' }), companyParams(COMPANY_ID))
+
+    expect(retry.status).toBe(201)
+    expect(retry.headers.get('Idempotent-Replayed')).toBeNull()
+    expect((await retry.json()).data.id).toBe('inv-after-fix')
+    expect(calls).toBe(2)
+    // The successful write is cached as before; only the refusal was not.
+    expect(mockStoreIdempotency).toHaveBeenCalledTimes(1)
+    expect(mockStoreIdempotency.mock.calls[0][5]).toBe('success')
+  })
+
   it('still rejects the same key carrying a different body', async () => {
     const { route, committed } = makeInvoiceRoute()
 
