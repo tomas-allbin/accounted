@@ -177,20 +177,23 @@ export async function matchPairs(
     })
   }
 
-  // Resolved once, lazily: only bank pairs need the ledger account.
+  // Resolved once, up front: a bank key names a cash_accounts row, and the
+  // row's ledger is what every pair is validated against. A key whose row
+  // does not exist is an unknown key (null, like a malformed one), never a
+  // silent 1930: that fallback validated every pair against a ledger the
+  // caller never named.
   let ledgerAccount: string | null = null
-  const resolveLedgerAccount = async (): Promise<string> => {
-    if (ledgerAccount) return ledgerAccount
-    if (parsed.kind !== 'bank') return '1930'
+  if (parsed.kind === 'bank') {
     const { data: account } = await supabase
       .from('cash_accounts')
       .select('ledger_account')
       .eq('company_id', companyId)
       .eq('id', parsed.cashAccountId)
       .maybeSingle<{ ledger_account: string }>()
-    ledgerAccount = account?.ledger_account ?? '1930'
-    return ledgerAccount
+    if (!account?.ledger_account) return null
+    ledgerAccount = account.ledger_account
   }
+  const resolveLedgerAccount = async (): Promise<string> => ledgerAccount ?? '1930'
 
   for (const pair of pairs) {
     // N outside rows may settle ONE verifikat (the worksheet selection). ONE

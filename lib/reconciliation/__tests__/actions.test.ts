@@ -55,6 +55,18 @@ describe('matchPairs', () => {
     emitMock.mockResolvedValue(undefined)
   })
 
+  it('treats a bank key whose cash account is gone as unknown, never as 1930', async () => {
+    const { supabase, enqueue } = createQueuedMockSupabase()
+    enqueue({ data: null }) // cash_accounts lookup: no such row for this company
+
+    const result = await matchPairs(supabase as never, COMPANY, USER, `bank:${CASH}`, {
+      pairs: [{ external_ids: [R1], journal_entry_ids: [E1] }],
+    })
+
+    expect(result).toBeNull()
+    expect(manualLinkMock).not.toHaveBeenCalled()
+  })
+
   it('returns null for an unknown or manual account key', async () => {
     const { supabase } = createQueuedMockSupabase()
     expect(await matchPairs(supabase as never, COMPANY, USER, 'nope', { pairs: [] })).toBeNull()
