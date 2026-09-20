@@ -17,7 +17,8 @@ meta:
   category: representation                   # eu_trade | tax_account | private_transfer |
                                              # salary | representation | year_end | vat |
                                              # financial | other
-  entity_type: all                           # all | enskild_firma | aktiebolag
+  entity_type: all                           # all | enskild_firma | aktiebolag |
+                                             # handelsbolag | ideell_forening
   description: >-
     Extern representation med avdragsgill moms. Max 300 kr/person exkl. moms.
 lines:

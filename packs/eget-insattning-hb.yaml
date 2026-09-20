@@ -1,0 +1,24 @@
+# Konteringspaket. Schema: lib/packs/schema.ts
+# Validated by `npm run validate:packs` (CI gate).
+meta:
+  slug: eget-insattning-hb
+  order: 28
+  name: 'Egen insättning (delägare)'
+  category: private_transfer
+  entity_type: handelsbolag
+  description: >-
+    Delägarens privata insättning till företagskontot (handelsbolag).
+  legal_note: >-
+    Insättningen bokförs mot delägarens kapitalkonto och är ett tillskott, inte
+    en intäkt. Fördelningen mellan delägarna följer bolagsavtalet.
+lines:
+  - account: '1930'
+    label: 'Företagskonto'
+    side: debit
+    type: settlement
+    ratio: 1.0
+  - account: '2018'
+    label: 'Egna insättningar, delägare'
+    side: credit
+    type: business
+    ratio: 1.0

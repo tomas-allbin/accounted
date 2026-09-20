@@ -85,6 +85,19 @@ const INTENTIONAL_DIVERGENCES: Record<string, Divergence> = {
   },
 }
 
+/**
+ * Packs that have no counterpart in the seed because they were written after
+ * the port. They are excluded from the comparison rather than treated as
+ * drift, and listed here so "none added" still means "none added by accident":
+ * a new pack has to be declared before the catalogue accepts it.
+ */
+const ADDED_AFTER_PORT: Record<string, string> = {
+  'eget-uttag-hb':
+    'Handelsbolag copy of eget-uttag. The seed predates the handelsbolag legal form, and the ' +
+    'EF pair is tagged enskild_firma, so a handelsbolag saw no owner pack at all.',
+  'eget-insattning-hb': 'Handelsbolag copy of eget-insattning, same reason as eget-uttag-hb.',
+}
+
 interface SeededTemplate {
   name: string
   description: string
@@ -123,7 +136,9 @@ describe('pack catalogue is a lossless port of the seeded system templates', () 
   })
 
   it('reproduces the seeded templates exactly, except where we deliberately fixed one', () => {
-    const unchanged = packs.filter((p) => !(p.pack.meta.slug in INTENTIONAL_DIVERGENCES))
+    const unchanged = packs.filter(
+      (p) => !(p.pack.meta.slug in INTENTIONAL_DIVERGENCES) && !(p.pack.meta.slug in ADDED_AFTER_PORT),
+    )
     const changedNames = new Set(Object.values(INTENTIONAL_DIVERGENCES).map((d) => d.seededName))
 
     const fromPacks = unchanged.map((p) => canonical(packToLibraryRow(p.pack))).sort()
@@ -151,9 +166,23 @@ describe('pack catalogue is a lossless port of the seeded system templates', () 
     }
   })
 
-  it('covers all 26 seeded templates, none added and none dropped', () => {
-    expect(packs).toHaveLength((seeded as SeededTemplate[]).length)
-    expect(packs).toHaveLength(26)
+  it('covers all 26 seeded templates, none dropped and nothing added undeclared', () => {
+    const added = Object.keys(ADDED_AFTER_PORT)
+    expect(packs).toHaveLength((seeded as SeededTemplate[]).length + added.length)
+    expect(packs).toHaveLength(26 + added.length)
+  })
+
+  it('every pack added after the port exists and is genuinely new, so the list cannot go stale', () => {
+    const seededNames = new Set((seeded as SeededTemplate[]).map((t) => t.name))
+
+    for (const slug of Object.keys(ADDED_AFTER_PORT)) {
+      const pack = packs.find((p) => p.pack.meta.slug === slug)
+      expect(pack, `${slug} is in ADDED_AFTER_PORT but no such pack exists`).toBeDefined()
+      expect(
+        seededNames.has(pack!.pack.meta.name),
+        `${slug} is listed as new but its name was seeded: it belongs in INTENTIONAL_DIVERGENCES`,
+      ).toBe(false)
+    }
   })
 
   it('preserves shipped Swedish text verbatim, em dashes included', () => {

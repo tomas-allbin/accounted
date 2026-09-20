@@ -1567,7 +1567,7 @@ export const BOOKING_TEMPLATES: readonly BookingTemplate[] = [
     vat_rate: 0,
     deductibility: 'non_deductible',
     mcc_codes: [],
-    keywords: ['privat', 'private', 'personlig', 'personal'],
+    keywords: ['privat', 'private', 'personlig', 'personal', 'eget uttag', 'egen insättning', 'uttag'],
     risk_level: 'NONE',
     requires_review: false,
     impact_score: 9,
