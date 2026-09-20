@@ -78,6 +78,7 @@ import '@/app/api/v1/companies/[companyId]/transactions/batch-categorize/route'
 import '@/app/api/v1/companies/[companyId]/reconciliation/bank/run/route'
 import '@/app/api/v1/companies/[companyId]/reconciliation/bank/status/route'
 import '@/app/api/v1/companies/[companyId]/cash-accounts/route'
+import '@/app/api/v1/companies/[companyId]/cash-accounts/[cashAccountId]/route'
 
 // F2: PSD2 bank-connection health (last_synced_at, consent_expires) so
 // integrations can detect stale bank data instead of trusting it blindly.
