@@ -210,6 +210,36 @@ describe('POST /api/settings/api-keys', () => {
     // Default mode is live, bound to the active company.
     expect(payload.mode).toBe('live')
     expect(payload.company_id).toBe('company-1')
+    // The hard binding is opt-in: a consultant's key spans every client.
+    expect(payload.bound_to_company).toBe(false)
+  })
+
+  it('stores the opt-in company binding when bound_to_company is true', async () => {
+    const { insertSpy } = setupFrom({
+      count: 0,
+      insertResult: {
+        data: {
+          id: 'ak-4',
+          key_prefix: 'gnubok_sk_bound',
+          name: 'agent',
+          scopes: ['reports:read'],
+          bound_to_company: true,
+          created_at: '2026-09-20T10:00:00Z',
+        },
+      },
+    })
+    const res = await POST(
+      createMockRequest('/api/settings/api-keys', {
+        method: 'POST',
+        body: { name: 'agent', scopes: ['reports:read'], bound_to_company: true },
+      }),
+      { params: Promise.resolve({}) },
+    )
+    const { status } = await parseJsonResponse(res)
+    expect(status).toBe(200)
+    const payload = insertSpy.mock.calls[0][0] as Record<string, unknown>
+    expect(payload.bound_to_company).toBe(true)
+    expect(payload.company_id).toBe('company-1')
   })
 
   it('creates a test key bound to the active company with mode=test', async () => {

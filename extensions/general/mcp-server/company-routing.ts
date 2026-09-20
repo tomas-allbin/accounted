@@ -130,10 +130,24 @@ export async function resolveMcpCompanyContext(args: {
   /** null while the key's user has no company (see validateApiKey). */
   defaultCompanyId: string | null
   requestedCompanyId?: string
+  /**
+   * The key is hard-bound to defaultCompanyId (api_keys.bound_to_company):
+   * a company_id naming any other company is refused as unknown, whatever
+   * the user's memberships say. Same 404 as a non-membership, so the other
+   * company's existence is not confirmed.
+   */
+  boundToCompany?: boolean
 }): Promise<McpCompanyContext> {
   const companyId = args.requestedCompanyId ?? args.defaultCompanyId
   if (!companyId) {
     throw noCompanyYetError()
+  }
+  if (
+    args.boundToCompany === true &&
+    args.defaultCompanyId !== null &&
+    companyId !== args.defaultCompanyId
+  ) {
+    throw codedError('NOT_FOUND', 'Company not found')
   }
 
   const { data: membership, error } = await args.supabase

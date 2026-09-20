@@ -163,6 +163,89 @@ describe('withApiV1: auth', () => {
     expect(res.status).toBe(401)
   })
 
+  it('refuses a bound key on any other company with 404, before the membership read', async () => {
+    mockValidate.mockResolvedValue({
+      userId: 'user-1',
+      companyId: 'company-prov',
+      scopes: ['reports:read'],
+      mode: 'live',
+      boundToCompany: true,
+    })
+    // The user IS a member of the other company: the binding must win anyway.
+    const supabase = makeSupabaseStub({ company_id: 'company-real', role: 'owner' })
+    mockServiceClient.mockReturnValue(supabase)
+    const inner = vi.fn()
+
+    const handler = withApiV1<{ params: Promise<{ companyId: string }> }>(
+      'reports.balance-sheet',
+      inner,
+      { requireScope: 'reports:read' },
+    )
+    const res = await handler(
+      makeRequest('https://x.test/api/v1/companies/company-real/reports/balance-sheet', {
+        headers: { Authorization: 'Bearer gnubok_sk_x' },
+      }),
+      companyParams('company-real'),
+    )
+
+    expect(res.status).toBe(404)
+    expect(inner).not.toHaveBeenCalled()
+    expect(supabase.from).not.toHaveBeenCalledWith('company_members')
+  })
+
+  it('lets a bound key through to its own company and exposes the binding on ctx', async () => {
+    mockValidate.mockResolvedValue({
+      userId: 'user-1',
+      companyId: 'company-prov',
+      scopes: ['reports:read'],
+      mode: 'live',
+      boundToCompany: true,
+    })
+    mockServiceClient.mockReturnValue(makeSupabaseStub({ company_id: 'company-prov', role: 'owner' }))
+
+    const handler = withApiV1<{ params: Promise<{ companyId: string }> }>(
+      'reports.balance-sheet',
+      async (_req, ctx) =>
+        ok({ bound: ctx.boundToCompany, keyCompanyId: ctx.keyCompanyId }, { requestId: ctx.requestId }),
+      { requireScope: 'reports:read' },
+    )
+    const res = await handler(
+      makeRequest('https://x.test/api/v1/companies/company-prov/reports/balance-sheet', {
+        headers: { Authorization: 'Bearer gnubok_sk_x' },
+      }),
+      companyParams('company-prov'),
+    )
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).data).toEqual({ bound: true, keyCompanyId: 'company-prov' })
+  })
+
+  it('an unbound key still reaches every company its user belongs to', async () => {
+    mockValidate.mockResolvedValue({
+      userId: 'user-1',
+      companyId: 'company-prov',
+      scopes: ['reports:read'],
+      mode: 'live',
+      boundToCompany: false,
+    })
+    mockServiceClient.mockReturnValue(makeSupabaseStub({ company_id: 'company-real', role: 'owner' }))
+
+    const handler = withApiV1<{ params: Promise<{ companyId: string }> }>(
+      'reports.balance-sheet',
+      async (_req, ctx) => ok({ bound: ctx.boundToCompany }, { requestId: ctx.requestId }),
+      { requireScope: 'reports:read' },
+    )
+    const res = await handler(
+      makeRequest('https://x.test/api/v1/companies/company-real/reports/balance-sheet', {
+        headers: { Authorization: 'Bearer gnubok_sk_x' },
+      }),
+      companyParams('company-real'),
+    )
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).data).toEqual({ bound: false })
+  })
+
   it('returns 429 when the underlying key is rate-limited', async () => {
     mockValidate.mockResolvedValue({ error: 'Rate limit exceeded', status: 429 })
 

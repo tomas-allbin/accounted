@@ -21,7 +21,7 @@ export const GET = withRouteContext(
     // active company too: they're simulation-only, so they never write real data.)
     const { data, error } = await supabase
       .from('api_keys')
-      .select('id, key_prefix, name, scopes, mode, rate_limit_rpm, unattended_commit_limit, last_used_at, revoked_at, created_at')
+      .select('id, key_prefix, name, scopes, mode, bound_to_company, rate_limit_rpm, unattended_commit_limit, last_used_at, revoked_at, created_at')
       .eq('company_id', companyId)
       .order('created_at', { ascending: false })
 
@@ -49,6 +49,9 @@ export const POST = withRouteContext(
     let scopes: ApiKeyScope[] = DEFAULT_SCOPES
     let acknowledgeSod = false
     let mode: ApiKeyMode = 'live'
+    // Opt-in: the v1 REST surface then refuses every company but this one
+    // (404) and lists only it. MCP is scoped to the key's company regardless.
+    let boundToCompany = false
     try {
       const body = await request.json()
       if (body.name && typeof body.name === 'string') {
@@ -56,6 +59,7 @@ export const POST = withRouteContext(
       }
       acknowledgeSod = body.acknowledge_sod === true
       if (body.mode === 'test') mode = 'test'
+      boundToCompany = body.bound_to_company === true
       const parsed = validateScopes(body.scopes)
       if (parsed) {
         scopes = parsed
@@ -125,11 +129,12 @@ export const POST = withRouteContext(
         name,
         scopes,
         mode,
+        bound_to_company: boundToCompany,
         ...(sodAcknowledgedAt
           ? { sod_acknowledged_at: sodAcknowledgedAt, sod_acknowledged_by: user.id }
           : {}),
       })
-      .select('id, key_prefix, name, scopes, mode, created_at')
+      .select('id, key_prefix, name, scopes, mode, bound_to_company, created_at')
       .single()
 
     if (error) {

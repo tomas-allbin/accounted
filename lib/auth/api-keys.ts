@@ -173,6 +173,13 @@ export async function validateApiKey(
        * block every commit for the key.
        */
       unattendedCommitLimit: number | null
+      /**
+       * Opt-in hard binding to `companyId` (migration 20260920165500): the v1
+       * wrapper answers 404 for any other URL company and the company list
+       * returns only this one. MCP is scoped to `companyId` regardless.
+       * False for every key that predates the column.
+       */
+      boundToCompany: boolean
     }
   | { error: string; status: number }
 > {
@@ -224,6 +231,8 @@ export async function validateApiKey(
     // month-end because a defence-in-depth read blipped would be far worse
     // than not enforcing.
     unattendedCommitLimit: parseUnattendedCommitLimit(row.unattended_commit_limit),
+    // Absent on a DB that has not run the migration: unbound, as before.
+    boundToCompany: row.bound_to_company === true,
   }
 }
 
