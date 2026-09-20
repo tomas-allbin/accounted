@@ -165,6 +165,56 @@ describe('GET /api/v1/companies', () => {
     expect(body.data).toEqual([])
   })
 
+  // Records every builder call so the company filter can be asserted.
+  function makeRecordingSupabase(rows: unknown[]) {
+    const calls: Array<{ method: string; args: unknown[] }> = []
+    const buildChain = (): unknown =>
+      new Proxy(
+        {},
+        {
+          get(_t, prop) {
+            if (prop === 'then') {
+              return (resolve: (v: unknown) => void) => resolve({ data: rows, error: null })
+            }
+            return (...args: unknown[]) => {
+              calls.push({ method: String(prop), args })
+              return buildChain()
+            }
+          },
+        },
+      )
+    return { supabase: { from: vi.fn(() => buildChain()) }, calls }
+  }
+
+  it('restricts the list to the bound company for a key bound to it', async () => {
+    const BOUND = '8fd5b1f4-0000-4000-8000-000000000001'
+    mockValidate.mockResolvedValue({
+      userId: USER_ID,
+      companyId: BOUND,
+      apiKeyId: 'ak_1',
+      apiKeyName: 'agent key',
+      scopes: ['companies:read'],
+      mode: 'live',
+      boundToCompany: true,
+    })
+    const { supabase, calls } = makeRecordingSupabase([membershipRow()])
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await listCompanies(makeRequest(), staticRouteContext())
+    expect(res.status).toBe(200)
+    expect((await res.json()).data).toHaveLength(1)
+    expect(calls).toContainEqual({ method: 'eq', args: ['company_id', BOUND] })
+  })
+
+  it('does not filter the list for an unbound key', async () => {
+    const { supabase, calls } = makeRecordingSupabase([membershipRow()])
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await listCompanies(makeRequest(), staticRouteContext())
+    expect(res.status).toBe(200)
+    expect(calls.some((c) => c.method === 'eq' && c.args[0] === 'company_id')).toBe(false)
+  })
+
   it('returns 401 for a missing bearer token (auth still enforced)', async () => {
     const res = await listCompanies(
       new Request('https://x.test/api/v1/companies'),

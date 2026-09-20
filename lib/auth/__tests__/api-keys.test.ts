@@ -299,7 +299,22 @@ describe('validateApiKey', () => {
       scopes: ['transactions:read', 'reports:read'],
       mode: 'live',
       unattendedCommitLimit: null,
+      boundToCompany: false,
     })
+  })
+
+  it('surfaces the company binding from the RPC row, unbound when the column is absent', async () => {
+    setupMockRpc({
+      data: [{
+        user_id: 'user-123',
+        company_id: 'company-456',
+        scopes: ['reports:read'],
+        rate_limited: false,
+        bound_to_company: true,
+      }],
+      error: null,
+    })
+    expect(await validateApiKey('gnubok_sk_test-key-value')).toMatchObject({ boundToCompany: true })
   })
 
   it('falls back to DEFAULT_SCOPES when row.scopes is null', async () => {
@@ -322,6 +337,7 @@ describe('validateApiKey', () => {
       scopes: DEFAULT_SCOPES,
       mode: 'live',
       unattendedCommitLimit: null,
+      boundToCompany: false,
     })
   })
 
@@ -348,6 +364,7 @@ describe('validateApiKey', () => {
       scopes: ['transactions:read'],
       mode: 'test',
       unattendedCommitLimit: null,
+      boundToCompany: false,
     })
   })
 
