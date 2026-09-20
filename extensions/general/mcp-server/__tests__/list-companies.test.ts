@@ -118,4 +118,51 @@ describe('gnubok_list_companies', () => {
       default_company_id: DEFAULT_COMPANY_ID,
     })
   })
+
+  it('lists only the bound company for a key bound to it', async () => {
+    vi.mocked(getUserCompanies).mockResolvedValue([
+      {
+        company_id: DEFAULT_COMPANY_ID,
+        role: 'owner',
+        joined_at: '2026-01-01',
+        companies: {
+          id: DEFAULT_COMPANY_ID,
+          name: 'PROV HB',
+          org_number: '969600-0001',
+          entity_type: 'handelsbolag',
+          archived_at: null,
+          created_at: '2026-01-01',
+        },
+      },
+      {
+        company_id: OTHER_COMPANY_ID,
+        role: 'owner',
+        joined_at: '2026-02-01',
+        companies: {
+          id: OTHER_COMPANY_ID,
+          name: 'Skarpt HB',
+          org_number: '969600-0002',
+          entity_type: 'handelsbolag',
+          archived_at: null,
+          created_at: '2026-02-01',
+        },
+      },
+    ] as never)
+    const inMock = vi.fn(() => ({ order: vi.fn(() => ({ range: vi.fn().mockResolvedValue({ data: [], error: null }) })) }))
+    const supabase = { from: vi.fn(() => ({ select: vi.fn(() => ({ in: inMock })) })) }
+
+    const result = (await listCompaniesTool.execute(
+      {},
+      DEFAULT_COMPANY_ID,
+      'user-1',
+      supabase as never,
+      { type: 'api_key', boundToCompany: true }
+    )) as { companies: Array<{ company_id: string }>; count: number; default_company_id: string | null }
+
+    expect(result.count).toBe(1)
+    expect(result.companies.map((c) => c.company_id)).toEqual([DEFAULT_COMPANY_ID])
+    expect(result.default_company_id).toBe(DEFAULT_COMPANY_ID)
+    // The other company is never even looked up for a display name.
+    expect(inMock).toHaveBeenCalledWith('company_id', [DEFAULT_COMPANY_ID])
+  })
 })

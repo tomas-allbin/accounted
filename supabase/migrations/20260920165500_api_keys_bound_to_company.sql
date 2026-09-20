@@ -16,7 +16,9 @@
 --
 -- validate_and_increment_api_key is redefined with the flag as a new
 -- RETURNS TABLE column. Body identical to 20260902090000 apart from that
--- column; same signature, so no overload is created (see 20260421140000).
+-- column. A changed OUT row type cannot be CREATE OR REPLACEd, so the
+-- function is dropped first; the parameter signature stays (text), so no
+-- overload is created (see 20260421140000).
 
 ALTER TABLE public.api_keys
   ADD COLUMN IF NOT EXISTS bound_to_company boolean NOT NULL DEFAULT false;
@@ -24,7 +26,9 @@ ALTER TABLE public.api_keys
 COMMENT ON COLUMN public.api_keys.bound_to_company IS
   'When true the v1 REST surface refuses every company but company_id (404) and lists only it. MCP is always scoped to company_id.';
 
-CREATE OR REPLACE FUNCTION public.validate_and_increment_api_key(p_key_hash text)
+DROP FUNCTION IF EXISTS public.validate_and_increment_api_key(text);
+
+CREATE FUNCTION public.validate_and_increment_api_key(p_key_hash text)
 RETURNS TABLE(
   user_id uuid,
   company_id uuid,
