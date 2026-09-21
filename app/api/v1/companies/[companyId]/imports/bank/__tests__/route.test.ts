@@ -299,6 +299,81 @@ describe('POST /api/v1/companies/:companyId/imports/bank', () => {
     expect(ingestMock.mock.calls[0][4]).toBeUndefined()
   })
 
+  it('binds the batch to the company primary cash account in the file currency by default', async () => {
+    supabase = makeSupabase({
+      company_members: { data: { company_id: COMPANY_ID, role: 'owner' }, error: null },
+      bank_file_imports: { data: { id: 'import-1' }, error: null },
+      cash_accounts: {
+        data: { id: 'ca-1941', ledger_account: '1941', currency: 'SEK', is_primary: true, enabled: true },
+        error: null,
+      },
+    })
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await callRoute()
+
+    expect(res.status).toBe(202)
+    expect(ingestMock.mock.calls[0][4]).toEqual({ bankFileImportId: 'import-1', settlementAccount: '1941' })
+    expect(supabase.calls).toContainEqual({ table: 'cash_accounts', method: 'eq', args: ['is_primary', true] })
+    expect(supabase.calls).toContainEqual({ table: 'cash_accounts', method: 'eq', args: ['currency', 'SEK'] })
+  })
+
+  it('binds the batch to an explicit cash_account_id that belongs to the company', async () => {
+    const CA = '11111111-1111-4111-8111-111111111111'
+    supabase = makeSupabase({
+      company_members: { data: { company_id: COMPANY_ID, role: 'owner' }, error: null },
+      bank_file_imports: { data: null, error: null },
+      cash_accounts: { data: { id: CA, ledger_account: '1940', currency: 'SEK' }, error: null },
+    })
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await callRoute({ search: `?cash_account_id=${CA}` })
+
+    expect(res.status).toBe(202)
+    expect(ingestMock.mock.calls[0][4]).toEqual({ settlementAccount: '1940' })
+    expect(supabase.calls).toContainEqual({ table: 'cash_accounts', method: 'eq', args: ['id', CA] })
+    expect(supabase.calls).toContainEqual({ table: 'cash_accounts', method: 'eq', args: ['company_id', COMPANY_ID] })
+  })
+
+  it('refuses an unknown cash_account_id with 404 before anything is written', async () => {
+    supabase = makeSupabase({
+      company_members: { data: { company_id: COMPANY_ID, role: 'owner' }, error: null },
+      cash_accounts: { data: null, error: null },
+    })
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await callRoute({ search: '?cash_account_id=22222222-2222-4222-8222-222222222222' })
+
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.code).toBe('CASH_ACCOUNT_NOT_FOUND')
+    expect(startOperationMock).not.toHaveBeenCalled()
+    expect(ingestMock).not.toHaveBeenCalled()
+    expect(supabase.calls.some((c) => c.table === 'bank_file_imports')).toBe(false)
+  })
+
+  it('refuses a cash account denominated in another currency with 409, nothing imported', async () => {
+    const CA = '33333333-3333-4333-8333-333333333333'
+    supabase = makeSupabase({
+      company_members: { data: { company_id: COMPANY_ID, role: 'owner' }, error: null },
+      cash_accounts: { data: { id: CA, ledger_account: '1932', currency: 'EUR' }, error: null },
+    })
+    mockServiceClient.mockReturnValue(supabase)
+
+    const res = await callRoute({ search: `?cash_account_id=${CA}` })
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error.code).toBe('BANK_FILE_SETTLEMENT_ACCOUNT_UNAVAILABLE')
+    expect(body.error.details).toMatchObject({ account_currency: 'EUR', file_currency: 'SEK' })
+    expect(ingestMock).not.toHaveBeenCalled()
+  })
+
+  it('400s a cash_account_id that is not a UUID', async () => {
+    const res = await callRoute({ search: '?cash_account_id=1941' })
+    expect(res.status).toBe(400)
+    expect(ingestMock).not.toHaveBeenCalled()
+  })
+
   it('stamps ids and provenance with the fallback format when an explicit override parses nothing', async () => {
     // Swedbank file forced as `seb`: the parser falls back to the detected
     // format, and external ids / import_source must follow the format the

@@ -37,6 +37,7 @@ import {
   generateExternalId,
 } from '@/lib/import/bank-file/parser'
 import { ingestTransactions } from '@/lib/transactions/ingest'
+import { getPrimary as getPrimaryCashAccount } from '@/lib/cash-accounts/service'
 import type { RawTransaction } from '@/types'
 import { decodeFileContent } from '@/lib/import/shared/encoding'
 import type { BankFileFormatId } from '@/lib/import/bank-file/types'
@@ -71,10 +72,35 @@ const BankFormatEnum = z.enum([
   'camt053',
 ])
 
+/** The currency most rows carry, upper-cased; SEK when the file says nothing. */
+function majorityCurrency(currencies: string[]): string {
+  const counts = new Map<string, number>()
+  for (const raw of currencies) {
+    const code = (raw || 'SEK').toUpperCase()
+    counts.set(code, (counts.get(code) ?? 0) + 1)
+  }
+  let best = 'SEK'
+  let bestCount = -1
+  for (const [code, count] of counts) {
+    if (count > bestCount) {
+      best = code
+      bestCount = count
+    }
+  }
+  return best
+}
+
 const ImportQuery = z.object({
   format: BankFormatEnum.optional().describe(
     'Force this bank file format instead of auto-detection. Omit to auto-detect.',
   ),
+  cash_account_id: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      'The cash account (bank account) the file belongs to; every row is bound to it. Omit to bind to the company primary cash account in the file currency.',
+    ),
 })
 
 registerEndpoint({
@@ -95,6 +121,7 @@ registerEndpoint({
     'Duplicate detection is by external_id (composed from format + date + description + amount + row index, or the camt.053 entry reference / Wise transfer id where the file carries one); a re-import of the same file typically deduplicates rather than creating doubles.',
     'BFL 5 kap 6-7 §§ note: this endpoint creates `transactions` rows (the underlag for a verifikation), NOT verifikationer themselves. The verifikation content requirements are in BFL 5 kap 6-7 §§; until each transaction is matched to an invoice/supplier-invoice (POST /transactions/{id}/match-*) or categorised (POST /transactions/{id}/categorize), the bookkeeping obligation isn\'t discharged. A successful import here means the data is ingested: not booked.',
     'A successful import returns operation_id; poll /operations/{id} for the final ingested/duplicates/errors counts.',
+    'Every row is bound to ONE cash account: `cash_account_id` when given (must belong to the company and be denominated in the file currency: CASH_ACCOUNT_NOT_FOUND / BANK_FILE_SETTLEMENT_ACCOUNT_UNAVAILABLE, nothing imported), otherwise the company primary cash account in that currency. Bank files carry no ledger account, so an unbound row would be booked against a guessed 19xx (1930 when the company has several accounts). Pass it explicitly when the company has more than one bank account; list them with GET .../cash-accounts.',
   ],
   example: {
     response: {
@@ -214,6 +241,73 @@ export const POST = withApiV1<{ params: Promise<{ companyId: string }> }>(
       })
     }
 
+    // Bind the batch to ONE cash account before anything is written. A bank
+    // file names no ledger account, and an unbound row (cash_account_id NULL)
+    // is booked against a guess: the single enabled account in its currency,
+    // or 1930 when there are several (lib/bookkeeping/settlement-account.ts).
+    // On the HB pilot that guess was the retired 1930 seed while the books
+    // live on 1941, so every categorisation previewed the wrong bank leg
+    // (2026-09-21). The wizard path binds through the user's pick (PH#86);
+    // here the caller names the account, or the primary in the file's
+    // currency stands in. Denominated by majority currency like the wizard:
+    // Wise and camt.053 files mix currencies per row.
+    const batchCurrency = majorityCurrency(parseResult.transactions.map((t) => t.currency || 'SEK'))
+    const cashAccountParam = url.searchParams.get('cash_account_id')
+    let settlementAccount: string | undefined
+    if (cashAccountParam !== null) {
+      const parsedId = ImportQuery.shape.cash_account_id.safeParse(cashAccountParam)
+      if (!parsedId.success) {
+        return v1ErrorResponseFromCode('VALIDATION_ERROR', ctx.log, {
+          requestId: ctx.requestId,
+          details: { field: 'cash_account_id', message: 'cash_account_id must be a UUID.' },
+        })
+      }
+      const { data: cashAccount, error: cashAccountError } = await ctx.supabase
+        .from('cash_accounts')
+        .select('id, ledger_account, currency')
+        .eq('company_id', ctx.companyId!)
+        .eq('id', parsedId.data)
+        .maybeSingle()
+      if (cashAccountError) {
+        return v1ErrorResponseFromCode('INTERNAL_ERROR', ctx.log, {
+          requestId: ctx.requestId,
+          details: { message: getUserErrorMessage(cashAccountError) },
+        })
+      }
+      if (!cashAccount) {
+        return v1ErrorResponseFromCode('CASH_ACCOUNT_NOT_FOUND', ctx.log, {
+          requestId: ctx.requestId,
+          details: { cash_account_id: parsedId.data },
+        })
+      }
+      const accountCurrency = ((cashAccount.currency as string | null) ?? 'SEK').toUpperCase()
+      if (accountCurrency !== batchCurrency) {
+        return v1ErrorResponseFromCode('BANK_FILE_SETTLEMENT_ACCOUNT_UNAVAILABLE', ctx.log, {
+          requestId: ctx.requestId,
+          details: {
+            cash_account_id: parsedId.data,
+            ledger_account: cashAccount.ledger_account,
+            account_currency: accountCurrency,
+            file_currency: batchCurrency,
+          },
+        })
+      }
+      settlementAccount = cashAccount.ledger_account as string
+    } else {
+      const primary = await getPrimaryCashAccount(ctx.supabase, ctx.companyId!, batchCurrency)
+      if (primary && (primary.currency ?? 'SEK').toUpperCase() === batchCurrency) {
+        settlementAccount = primary.ledger_account
+      } else {
+        // No primary in this currency: the rows import unbound, as before,
+        // and booking falls back to the single-account rule. Logged so the
+        // company can be told to set one up (cash-accounts.create).
+        ctx.log.warn('bank import has no cash account to bind to; rows import unbound', {
+          currency: batchCurrency,
+          format: effectiveFormat,
+        })
+      }
+    }
+
     const op = await startOperation(
       ctx.supabase,
       {
@@ -226,6 +320,7 @@ export const POST = withApiV1<{ params: Promise<{ companyId: string }> }>(
           format: effectiveFormat,
           file_hash: fileHash,
           transaction_count: parseResult.transactions.length,
+          settlement_account: settlementAccount ?? null,
         },
       },
       ctx.log,
@@ -319,7 +414,12 @@ export const POST = withApiV1<{ params: Promise<{ companyId: string }> }>(
         ctx.companyId!,
         ctx.userId,
         raw,
-        importRow?.id ? { bankFileImportId: importRow.id as string } : undefined,
+        importRow?.id || settlementAccount
+          ? {
+              ...(importRow?.id ? { bankFileImportId: importRow.id as string } : {}),
+              ...(settlementAccount ? { settlementAccount } : {}),
+            }
+          : undefined,
       )
 
       // Mark the bank_file_imports row complete. The unique constraint is
